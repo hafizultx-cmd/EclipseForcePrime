@@ -409,7 +409,10 @@ if(window.claude)return;
 const CFG={url:'https://pqcqrqjnfyrtmebtcnvb.supabase.co',key:'sb_publishable_1dcq6ga6LxllJkJx9igFAQ_z-4Spy4I'};
 const lib=window.supabase;
 if(!lib||!lib.createClient){console.error('Supabase library failed to load');return}
-const sb=lib.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true}});
+/* No Web Locks: some mobile browsers leave the lock orphaned after a reload, which hangs getSession() and blocks the whole app. */
+const sb=lib.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,lock:async(n,t,fn)=>await fn()}});
+const within=(p,ms,fb)=>Promise.race([p,new Promise(r=>setTimeout(()=>r(fb),ms))]);
+const getSes=async()=>{try{return (await within(sb.auth.getSession(),4000,{data:{session:null}})).data.session}catch(e){return null}};
 const TABLES={matches:1,roster:1};
 function collection(name){
   if(!TABLES[name])throw new Error('unknown collection');
@@ -417,8 +420,8 @@ function collection(name){
     let busy=false,again=false;
     const load=async()=>{if(busy){again=true;return}busy=true;
       try{const r=await sb.from(name).select('id,data');
-        if(r.error){err&&err(r.error)}else cb({metadata:{fromCache:false},docs:r.data.map(x=>({id:x.id,data:()=>x.data}))})}
-      catch(e){err&&err(e)}
+        if(r.error){console.error('EFP data',name,r.error);err&&err(r.error)}else cb({metadata:{fromCache:false},docs:r.data.map(x=>({id:x.id,data:()=>x.data}))})}
+      catch(e){console.error('EFP data',name,e);err&&err(e)}
       busy=false;if(again){again=false;load()}};
     load();
     sb.channel('efp-'+name).on('postgres_changes',{event:'*',schema:'public',table:name},load).subscribe();
@@ -434,11 +437,12 @@ function doc(path){
 }
 let adminCache=null;
 async function isAdmin(){
-  const s=(await sb.auth.getSession()).data.session;if(!s)return false;
+  const s=await getSes();if(!s)return false;
   if(adminCache!==null)return adminCache;
-  const r=await sb.rpc('is_admin');adminCache=r.data===true;return adminCache;
+  try{const r=await within(sb.rpc('is_admin'),5000,{data:false});if(r.error)console.error('EFP is_admin',r.error);adminCache=r.data===true}catch(e){adminCache=false}
+  return adminCache;
 }
-const user={canEdit:isAdmin,isOwner:isAdmin,async id(){const s=(await sb.auth.getSession()).data.session;return s?s.user.id:null}};
+const user={canEdit:isAdmin,isOwner:isAdmin,async id(){const s=await getSes();return s?s.user.id:null}};
 const downloads={async save(r){
   const b=r.data instanceof Blob?r.data:new Blob([r.data],{type:'application/octet-stream'});
   const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=r.filename;document.body.appendChild(a);a.click();
@@ -461,12 +465,12 @@ let mode='in';
 function msg(t,err){const m=box.querySelector('#authMsg');m.textContent=t||'';m.className='msg'+(err?' err':'')}
 function setMode(m){mode=m;box.querySelector('#authTitle').textContent=m==='in'?'Admin sign-in':'Create admin account';box.querySelector('#authGo').textContent=m==='in'?'Sign in':'Create account';box.querySelector('#authMode').textContent=m==='in'?'Create account':'I have an account';box.querySelector('#au_p').autocomplete=m==='in'?'current-password':'new-password';msg('')}
 async function refreshBtn(){
-  const s=(await sb.auth.getSession()).data.session,b=wrap.querySelector('#authBtn');
+  const s=await getSes(),b=wrap.querySelector('#authBtn');
   if(s){b.textContent='Sign out';b.title=s.user.email||''}else{b.textContent='Admin sign-in';b.title=''}
 }
 function mount(){
   document.body.appendChild(wrap);document.body.appendChild(box);refreshBtn();
-  wrap.querySelector('#authBtn').onclick=async()=>{const s=(await sb.auth.getSession()).data.session;if(s){await sb.auth.signOut();location.reload()}else{setMode('in');box.classList.add('on');box.querySelector('#au_e').focus()}};
+  wrap.querySelector('#authBtn').onclick=async()=>{const s=await getSes();if(s){try{await within(sb.auth.signOut(),3000,null)}catch(e){}location.reload()}else{setMode('in');box.classList.add('on');box.querySelector('#au_e').focus()}};
   box.querySelector('#authX').onclick=()=>box.classList.remove('on');
   box.onclick=e=>{if(e.target===box)box.classList.remove('on')};
   box.querySelector('#authMode').onclick=()=>setMode(mode==='in'?'up':'in');
@@ -477,7 +481,7 @@ function mount(){
       else{const r=await sb.auth.signUp({email:em,password:pw});if(r.error)throw r.error;
         if(r.data.session){adminCache=null;location.reload()}else msg('Account created. Open the confirmation email, then sign in.')}
     }catch(x){msg(x&&x.message?x.message:'Could not sign in.',1)}};
-  sb.auth.onAuthStateChange(()=>refreshBtn());
+  sb.auth.onAuthStateChange(()=>{setTimeout(refreshBtn,0)});
 }
 if(document.body)mount();else addEventListener('DOMContentLoaded',mount);
 })();
