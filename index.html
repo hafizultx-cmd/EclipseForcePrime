@@ -451,7 +451,7 @@ window.claude={use:async n=>n==='db'?{collection,doc}:n==='user'?user:n==='downl
 
 /* ---- admin sign-in UI ---- */
 const css=document.createElement('style');
-css.textContent='#siteAuth{position:fixed;left:12px;bottom:12px;z-index:90}@media (max-width:860px){#siteAuth{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}'+
+css.textContent='#siteAuth{position:fixed;left:12px;bottom:12px;z-index:90}@media (max-width:860px){#siteAuth{position:absolute;left:auto;bottom:auto;top:calc(14px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px))}}'+
 '#siteAuth button{font:600 11px/1 inherit;letter-spacing:.12em;text-transform:uppercase;color:var(--silver,#d5dcea);background:rgba(10,16,32,.75);border:1px solid var(--line2,rgba(120,165,255,.3));border-radius:99px;padding:8px 14px;cursor:pointer;backdrop-filter:blur(8px)}'+
 '#siteAuth button:hover{border-color:var(--blue,#3da5ff);color:#fff}'+
 '#authBox{position:fixed;inset:0;z-index:400;display:none;place-items:center;background:rgba(2,4,10,.82);backdrop-filter:blur(8px);padding:16px}#authBox.on{display:grid}'+
@@ -709,7 +709,7 @@ function renderDashboard(){
     '<div class="meta">'+typeTag(next)+(next.event?'<span class="tag">'+esc(next.event)+'</span>':'')+'<span class="tag">'+esc(niceDate(next))+'</span>'+(next.time?'<span class="tag">'+esc(niceTime(next))+'</span>':'')+'</div>';
   } else hero='<h2><span>Next match</span></h2><div class="empty"><b>No upcoming match</b><span>'+(S.admin?'Add one in the Admin console.':'Nothing scheduled yet.')+'</span></div>';
   const gp=pct(T.gw,T.games);
-  const rec=T.games?ring(gp,gp+'%','GAME WIN RATE','rgd')+'<div class="sep"></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin-bottom:8px"><span>Series <b class="up">'+T.sw+'W</b> · <b class="dn">'+T.sl+'L</b>'+(T.sd?' · '+T.sd+'D':'')+'</span><span>Form</span></div><div class="form">'+(T.form.slice(0,10).map(r=>'<i class="'+(r==='W'?'w':r==='L'?'l':'')+'">'+r+'</i>').join('')||'<span class="note">No finished series yet.</span>')+'</div>':'<div class="empty"><b>No results yet</b><span>Record a result and the win ring lights up.</span></div>';
+  const rec=T.games?ring(gp,gp+'%','WIN RATE','rgd')+'<div class="sep"></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin-bottom:8px"><span>Series <b class="up">'+T.sw+'W</b> · <b class="dn">'+T.sl+'L</b>'+(T.sd?' · '+T.sd+'D':'')+'</span><span>Form</span></div><div class="form">'+(T.form.slice(0,10).map(r=>'<i class="'+(r==='W'?'w':r==='L'?'l':'')+'">'+r+'</i>').join('')||'<span class="note">No finished series yet.</span>')+'</div>':'<div class="empty"><b>No results yet</b><span>Record a result and the win ring lights up.</span></div>';
   const mv=T.players.slice().sort((a,b)=>b.mvp-a.mvp)[0],ranked=T.players.filter(p=>p.g>0).sort((a,b)=>b.kda-a.kda),mk=ranked[0]?ranked[0].kda:1;
   const kpis='<div class="grid g4"><div class="card kpi"><small>Series played</small><div class="v" data-count="'+T.played+'">'+T.played+'</div><div class="d">'+T.sw+' won · '+T.sl+' lost · '+pct(T.sw,T.sw+T.sl)+'% win rate</div></div>'+
    '<div class="card kpi"><small>Games W – L</small><div class="v"><span class="up" data-count="'+T.gw+'">'+T.gw+'</span> – <span class="dn" data-count="'+T.gl+'">'+T.gl+'</span></div><div class="d">'+pct(T.gw,T.games)+'% win rate · '+T.games+' games</div></div>'+
