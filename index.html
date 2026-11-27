@@ -608,12 +608,12 @@ function players(){
   let p=S.players.length?S.players.map(q=>{const d=DEFAULT_ROSTER.find(x=>x.id===q.id);return d?Object.assign({ign:d.ign,titles:d.titles,av:d.av},q):q}):DEFAULT_ROSTER.slice();
   return p.sort((a,b)=>num(a.order,99)-num(b.order,99));
 }
-function compute(){
+function compute(sub){
   const P=players(),pm={};
   P.forEach(p=>{pm[p.id]={id:p.id,name:p.name,role:p.role,g:0,k:0,d:0,a:0,mvp:0,w:0,l:0,mn:0,sv:0}});
   const blank=()=>({gw:0,gl:0,sw:0,sl:0,sd:0});
   const T={played:0,sw:0,sl:0,sd:0,gw:0,gl:0,k:0,d:0,a:0,mn:0,sv:0,hero:{},ph:{},enemy:{},banUs:{},banThem:{},seq:[],form:[],type:{scrim:blank(),comp:blank()},opp:{},bo:{},dur:[]};
-  ordered().forEach(m=>{
+  (sub||ordered()).forEach(m=>{
     const ev=evalMatch(m);if(!ev.n)return;
     T.played++;
     const ty=m.type==='comp'?'comp':'scrim',ok=((m.opp||'Unknown').trim()||'Unknown'),key=ok.toLowerCase();
@@ -913,9 +913,9 @@ function overviewHtml(T){
 function renderStats(){
   const el=$('#v-stats'),T=compute();
   if(!T.games){el.innerHTML='<div class="card">'+H.emptyBlock()+'</div>';el.onclick=e=>{if(e.target.closest('[data-act="sample"]')){S.sample=true;H.afterSample()}};return}
-  const tabs=[['overview','Overview'],['heroes','Heroes & draft'],['titles','Titles & badges']];if(!S.stTab)S.stTab='overview';
-  el.innerHTML='<div class="chips" role="tablist">'+tabs.map(t=>'<button class="chip'+(S.stTab===t[0]?' on':'')+'" data-st="'+t[0]+'" role="tab">'+t[1].replace('&','&amp;')+'</button>').join('')+'</div>'+(S.stTab==='heroes'?H.heroesHtml(T):S.stTab==='titles'?H.titlesHtml(T):overviewHtml(T));
-  el.onclick=e=>{const c=e.target.closest('[data-st]');if(c){S.stTab=c.dataset.st;renderStats()}};
+  const tabs=[['overview','Overview'],['heroes','Heroes & draft'],['draft','Draft analysis'],['summary','Weekly & monthly'],['titles','Titles & badges']];if(!S.stTab)S.stTab='overview';
+  el.innerHTML='<div class="chips" role="tablist">'+tabs.map(t=>'<button class="chip'+(S.stTab===t[0]?' on':'')+'" data-st="'+t[0]+'" role="tab">'+t[1].replace('&','&amp;')+'</button>').join('')+'</div>'+(S.stTab==='heroes'?H.heroesHtml(T):S.stTab==='draft'?H.draftHtml(T):S.stTab==='summary'?H.summaryHtml():S.stTab==='titles'?H.titlesHtml(T):overviewHtml(T));
+  el.onclick=e=>{if(H.statsClick&&H.statsClick(e))return;const c=e.target.closest('[data-st]');if(c){S.stTab=c.dataset.st;renderStats()}};
 }
 function renderRoster(){
   const el=$('#v-roster'),T=compute();
@@ -1051,6 +1051,163 @@ async function shareCard(id){
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const md=$('#shareModal');if(md)md.classList.remove('on')}});
 Object.assign(H,{recordHtml,awards,titlesHtml,heroesHtml,shareCard});
+})();
+
+(function(){
+'use strict';
+const S=window.__EFX,H=S.H,{$,esc,num,pct,f2,compute,evalMatch,ordered,players,ymd,pad,niceDate,IMG_US}=H;
+const MON=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+const arr=o=>Object.keys(o||{}).map(k=>o[k]);
+const kdaOf=h=>(num(h.k)+num(h.a))/Math.max(1,num(h.d));
+const wlbar=(w,l)=>{const t=w+l;return t?'<div style="display:flex;height:7px;border-radius:9px;overflow:hidden;background:rgba(255,255,255,.07);margin-top:6px"><i style="width:'+(100*w/t)+'%;background:var(--green,#35e0a1)"></i><i style="flex:1;background:var(--red,#ff5a6e)"></i></div>':''};
+const KINDS=[['week','This week'],['lastweek','Last week'],['month','This month'],['lastmonth','Last month']];
+const dmy=s=>{const p=s.split('-');return p[2]+' '+MON[+p[1]-1].slice(0,3)+' '+p[0]};
+
+/* ---------- periods ---------- */
+function range(kind){
+  const n=new Date(),t=new Date(n.getFullYear(),n.getMonth(),n.getDate());
+  if(kind==='week'||kind==='lastweek'){
+    const s=new Date(t);s.setDate(t.getDate()-((t.getDay()+6)%7)-(kind==='lastweek'?7:0));
+    const e=new Date(s);e.setDate(s.getDate()+6);
+    return{a:ymd(s),b:ymd(e),label:dmy(ymd(s))+' – '+dmy(ymd(e)),title:kind==='week'?'THIS WEEK':'LAST WEEK',tag:'WEEKLY SUMMARY',file:'weekly'};
+  }
+  const s=new Date(n.getFullYear(),n.getMonth()-(kind==='lastmonth'?1:0),1),e=new Date(s.getFullYear(),s.getMonth()+1,0);
+  return{a:ymd(s),b:ymd(e),label:MON[s.getMonth()]+' '+s.getFullYear(),title:kind==='month'?'THIS MONTH':'LAST MONTH',tag:'MONTHLY SUMMARY',file:'monthly'};
+}
+function periodData(kind){
+  const r=range(kind),list=ordered().filter(m=>m.date>=r.a&&m.date<=r.b),T=compute(list);
+  const res=list.map(m=>({m,ev:evalMatch(m)})).filter(x=>x.ev.n>0);
+  const pl=T.players.filter(p=>p.g>0);
+  const mvp=pl.filter(p=>p.mvp>0).sort((a,b)=>b.mvp-a.mvp||b.kda-a.kda)[0]||null;
+  const topKda=pl.slice().sort((a,b)=>b.kda-a.kda)[0]||null;
+  const topKill=pl.slice().sort((a,b)=>b.k-a.k)[0]||null;
+  const man=pl.reduce((s,p)=>s+num(p.mn),0),sav=pl.reduce((s,p)=>s+num(p.sv),0);
+  return{kind,r,T,res,pl,mvp,topKda,topKill,man,sav,wr:pct(T.gw,T.gw+T.gl)};
+}
+function sumText(d){
+  const T=d.T;
+  return '*Eclipse Force Prime · '+d.r.tag.toLowerCase()+'*\n'+d.r.label+'\nSeries '+T.sw+'–'+T.sl+(T.sd?'–'+T.sd:'')+' · Games '+T.gw+'–'+T.gl+' · Win rate '+d.wr+'%\nTeam KDA '+f2(T.kda)+(d.mvp?'\nMVP: '+d.mvp.name+' ('+d.mvp.mvp+')':'')+(d.topKda?'\nTop KDA: '+d.topKda.name+' '+f2(d.topKda.kda):'')+((d.man||d.sav)?'\nBadges: '+d.man+' Maniac · '+d.sav+' Savage':'')+(window.EFP_SITE?'\n'+location.origin+'/':'');
+}
+
+/* ---------- summary view ---------- */
+function summaryHtml(){
+  const kind=S.sumP||'week',d=periodData(kind),T=d.T;
+  const chips='<div class="chips" role="tablist" aria-label="Summary period">'+KINDS.map(k=>'<button class="chip'+(k[0]===kind?' on':'')+'" data-sp="'+k[0]+'" type="button">'+k[1]+'</button>').join('')+'</div>';
+  if(!T.games)return chips+'<div class="card"><div class="empty"><b>No games recorded</b><span>'+esc(d.r.label)+' has no recorded games yet. Pick another period, or enter results in the Admin console.</span></div></div>';
+  const kpi=(l,v,s,cls)=>'<div class="card kpi"><small>'+l+'</small><div class="v '+(cls||'')+'">'+v+'</div><div class="d">'+s+'</div></div>';
+  const k='<div class="grid g4">'+kpi('Series',T.sw+'–'+T.sl,(T.sd?T.sd+' drawn · ':'')+d.res.length+' match'+(d.res.length===1?'':'es'))+kpi('Games',T.gw+'–'+T.gl,T.games+' played')+kpi('Win rate',d.wr+'%','by game',d.wr>=50?'gold':'')+kpi('Team KDA',f2(T.kda),T.k+' / '+T.d+' / '+T.a)+'</div>';
+  const hi=[];
+  if(d.mvp)hi.push('<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="t"><b>'+esc(d.mvp.name)+'</b><span>Most match MVPs</span></div><div class="score gold">'+d.mvp.mvp+' MVP</div></div>');
+  if(d.topKda)hi.push('<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="t"><b>'+esc(d.topKda.name)+'</b><span>Best KDA · '+d.topKda.g+' game'+(d.topKda.g===1?'':'s')+'</span></div><div class="score">'+f2(d.topKda.kda)+'</div></div>');
+  if(d.topKill)hi.push('<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="t"><b>'+esc(d.topKill.name)+'</b><span>Most kills</span></div><div class="score">'+d.topKill.k+'</div></div>');
+  if(d.man||d.sav)hi.push('<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="t"><b>Badges</b><span>Maniac / Savage this period</span></div><div class="score">'+d.man+' / '+d.sav+'</div></div>');
+  const hc='<div class="card"><h2><span>Highlights</span><span class="blue">'+esc(d.r.label)+'</span></h2><div class="rows" style="gap:8px">'+hi.join('')+'</div></div>';
+  const mc='<div class="card"><h2><span>Matches</span></h2><div class="rows" style="gap:8px">'+d.res.map(x=>{const e=x.ev,m=x.m,c=e.complete?e.res:'';return'<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="t"><b>vs '+esc(m.opp||'TBD')+'</b><span>'+esc(niceDate(m))+' · BO'+e.bo+' · '+(m.type==='comp'?'competition':'scrim')+(e.complete?'':' · in progress')+'</span></div><div class="score '+(c==='W'?'up':c==='L'?'dn':'')+'">'+e.w+'–'+e.l+'</div></div>'}).join('')+'</div></div>';
+  const pt='<div class="card stack"><h2><span>Players</span></h2><div class="tw"><table><thead><tr><th>Player</th><th>Games</th><th>W–L</th><th>K / D / A</th><th>KDA</th><th>MVP</th></tr></thead><tbody>'+d.pl.slice().sort((a,b)=>b.g-a.g||b.kda-a.kda).map(p=>'<tr><td><b>'+esc(p.name)+'</b></td><td>'+p.g+'</td><td><span class="up">'+p.w+'</span>–<span class="dn">'+p.l+'</span></td><td>'+p.k+' / '+p.d+' / '+p.a+'</td><td>'+f2(p.kda)+'</td><td>'+p.mvp+'</td></tr>').join('')+'</tbody></table></div></div>';
+  const act='<div class="mact" style="margin:14px 0"><button class="btn pri" type="button" data-sumshare="1">Share summary card</button><a class="btn" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center" href="https://wa.me/?text='+encodeURIComponent(sumText(d))+'">Share text on WhatsApp</a></div>';
+  return chips+act+k+'<div class="grid g2 stack">'+hc+mc+'</div>'+pt;
+}
+
+/* ---------- summary card (PNG) ---------- */
+const loadImg=src=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src});
+const sp=(x,v)=>{try{x.letterSpacing=v}catch(e){}};
+function fit(x,t,mw,px,wt,fam){let s=px;do{x.font=wt+' '+s+'px '+fam;s-=2}while(x.measureText(t).width>mw&&s>14)}
+async function buildSummaryCard(d){
+  try{await Promise.race([Promise.all([document.fonts.load('700 40px "Chakra Petch"')]),new Promise(r=>setTimeout(r,1500))])}catch(e){}
+  const FAM='"Chakra Petch","Segoe UI",Arial,sans-serif',W=1080,Hh=1350,c=document.createElement('canvas');c.width=W;c.height=Hh;const x=c.getContext('2d'),T=d.T;
+  const rr=(a,b,w,h,r)=>{x.beginPath();x.roundRect?x.roundRect(a,b,w,h,r):x.rect(a,b,w,h)};
+  const good=d.wr>=50,acc=good?'#35e0a1':'#ff8a5e';
+  let g=x.createLinearGradient(0,0,0,Hh);g.addColorStop(0,'#070b18');g.addColorStop(1,'#03050b');x.fillStyle=g;x.fillRect(0,0,W,Hh);
+  let r=x.createRadialGradient(540,330,20,540,330,720);r.addColorStop(0,good?'rgba(53,224,161,.18)':'rgba(61,165,255,.2)');r.addColorStop(.5,'rgba(90,70,255,.09)');r.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=r;x.fillRect(0,0,W,Hh);
+  x.save();x.strokeStyle='rgba(120,165,255,.07)';x.lineWidth=1;for(let i=0;i<=W;i+=60){x.beginPath();x.moveTo(i,0);x.lineTo(i,Hh);x.stroke()}for(let j=0;j<=Hh;j+=60){x.beginPath();x.moveTo(0,j);x.lineTo(W,j);x.stroke()}x.restore();
+  x.strokeStyle=acc;x.globalAlpha=.7;x.lineWidth=3;x.strokeRect(28,28,W-56,Hh-56);x.globalAlpha=1;
+  const us=await loadImg(IMG_US);
+  x.save();x.beginPath();x.arc(98,100,44,0,7);x.fillStyle='#04060c';x.fill();x.clip();if(us){const k=Math.max(88/us.width,88/us.height),w=us.width*k,h=us.height*k;x.drawImage(us,98-w/2,100-h/2,w,h)}x.restore();
+  x.strokeStyle='#3da5ff';x.lineWidth=3;x.beginPath();x.arc(98,100,44,0,7);x.stroke();
+  x.textAlign='left';x.fillStyle='#d5dcea';sp(x,'6px');x.font='700 30px '+FAM;x.fillText('ECLIPSE FORCE PRIME',150,92);x.fillStyle='#8d9bbd';x.font='600 20px '+FAM;sp(x,'8px');x.fillText('MOBILE LEGENDS · '+d.r.tag,150,126);
+  x.textAlign='center';sp(x,'12px');x.fillStyle=acc;x.shadowColor=acc;x.shadowBlur=26;x.font='700 62px '+FAM;x.fillText(d.r.title,540,250);x.shadowBlur=0;
+  sp(x,'4px');x.fillStyle='#8d9bbd';x.font='600 24px '+FAM;fit(x,d.r.label,900,24,'600',FAM);x.fillText(d.r.label,540,292);sp(x,'0px');
+  /* series record */
+  x.fillStyle='#fff';x.font='700 150px '+FAM;x.shadowColor='rgba(61,165,255,.6)';x.shadowBlur=28;x.fillText(T.sw+' – '+T.sl,540,450);x.shadowBlur=0;
+  sp(x,'6px');x.fillStyle='#8d9bbd';x.font='600 22px '+FAM;x.fillText('SERIES RECORD'+(T.sd?'  ·  '+T.sd+' DRAWN':''),540,492);sp(x,'0px');
+  /* stat boxes */
+  const box=(i,lab,val,col)=>{const bw=290,gx=(W-3*bw-2*25)/2,bx=gx+i*(bw+25);x.fillStyle='rgba(255,255,255,.04)';x.strokeStyle='rgba(120,165,255,.28)';x.lineWidth=2;rr(bx,525,bw,112,16);x.fill();x.stroke();
+    x.textAlign='center';x.fillStyle='#8d9bbd';sp(x,'4px');x.font='600 17px '+FAM;x.fillText(lab,bx+bw/2,560);sp(x,'0px');x.fillStyle=col;x.font='700 48px '+FAM;x.fillText(val,bx+bw/2,614)};
+  box(0,'GAMES W – L',T.gw+' – '+T.gl,'#fff');box(1,'WIN RATE',d.wr+'%',acc);box(2,'TEAM KDA',f2(T.kda),'#e9b95b');
+  /* highlights */
+  const hl=(i,lab,name,val)=>{const bw=447,bx=80+i*(bw+26);const pg=x.createLinearGradient(bx,0,bx+bw,0);pg.addColorStop(0,'rgba(233,185,91,.2)');pg.addColorStop(1,'rgba(233,185,91,.04)');x.fillStyle=pg;x.strokeStyle='rgba(233,185,91,.55)';x.lineWidth=2;rr(bx,668,bw,118,16);x.fill();x.stroke();
+    x.textAlign='left';x.fillStyle='#e9b95b';sp(x,'4px');x.font='700 17px '+FAM;x.fillText(lab,bx+22,702);sp(x,'0px');x.fillStyle='#fff';fit(x,name.toUpperCase(),bw-44,38,'700',FAM);x.fillText(name.toUpperCase(),bx+22,748);x.fillStyle='#d5dcea';x.font='600 22px '+FAM;x.fillText(val,bx+22,776)};
+  hl(0,'★ MVP OF THE PERIOD',d.mvp?d.mvp.name:'—',d.mvp?d.mvp.mvp+' match MVP'+(d.mvp.mvp===1?'':'s'):'none awarded');
+  hl(1,'★ BEST KDA',d.topKda?d.topKda.name:'—',d.topKda?'KDA '+f2(d.topKda.kda)+' · '+d.topKda.g+' games':'');
+  /* results */
+  x.textAlign='left';x.fillStyle='#8d9bbd';sp(x,'4px');x.font='600 17px '+FAM;x.fillText('RESULTS'+((d.man||d.sav)?'   ·   '+d.man+' MANIAC  ·  '+d.sav+' SAVAGE':''),80,826);sp(x,'0px');
+  const chips=d.res.slice(-6),cw=290,ch=54;
+  chips.forEach((q,i)=>{const col=i%3,row=Math.floor(i/3),bx=80+col*(cw+25)-(col?0:0),by=842+row*(ch+12),e=q.ev,w=e.complete&&e.res==='W',l=e.complete&&e.res==='L';
+    x.fillStyle=w?'rgba(53,224,161,.14)':l?'rgba(255,90,110,.14)':'rgba(255,255,255,.05)';x.strokeStyle=w?'#35e0a1':l?'#ff5a6e':'rgba(120,165,255,.4)';x.lineWidth=2;rr(bx,by,cw,ch,12);x.fill();x.stroke();
+    x.textAlign='left';x.fillStyle=w?'#35e0a1':l?'#ff5a6e':'#d5dcea';x.font='700 24px '+FAM;x.fillText(e.w+'–'+e.l,bx+14,by+36);
+    x.fillStyle='#fff';const on=(q.m.opp||'TBD').toUpperCase();fit(x,on,cw-100,22,'600',FAM);x.fillText(on,bx+84,by+35)});
+  if(d.res.length>6){x.textAlign='right';x.fillStyle='#8d9bbd';x.font='600 16px '+FAM;x.fillText('+'+(d.res.length-6)+' earlier',1000,826)}
+  /* players */
+  let y=1000;x.textAlign='left';x.fillStyle='#8d9bbd';sp(x,'4px');x.font='600 17px '+FAM;x.fillText('PLAYER',100,y);x.textAlign='right';x.fillText('W – L',470,y);x.fillText('K / D / A',720,y);x.fillText('KDA',970,y);sp(x,'0px');
+  d.pl.slice().sort((a,b)=>b.g-a.g||b.kda-a.kda).slice(0,5).forEach((p,i)=>{const yy=y+42+i*46;
+    x.textAlign='left';x.fillStyle=d.mvp&&d.mvp.id===p.id?'#e9b95b':'#fff';x.font='700 28px '+FAM;x.fillText((d.mvp&&d.mvp.id===p.id?'★ ':'')+p.name,100,yy);
+    x.textAlign='right';x.fillStyle='#d5dcea';x.font='600 26px '+FAM;x.fillText(p.w+' – '+p.l,470,yy);x.fillText(p.k+' / '+p.d+' / '+p.a,720,yy);x.fillStyle='#fff';x.font='700 28px '+FAM;x.fillText(f2(p.kda),970,yy)});
+  x.textAlign='center';x.fillStyle='rgba(213,220,234,.55)';sp(x,'8px');x.font='600 18px '+FAM;x.fillText('ECLIPSE FORCE PRIME  ·  TEAM OS',540,1310);sp(x,'0px');
+  return c;
+}
+async function shareSummary(){
+  const d=periodData(S.sumP||'week');if(!d.T.games){H.toast('No games in this period.',1);return}
+  H.toast('Building the summary card…');
+  let c;try{c=await buildSummaryCard(d)}catch(e){H.toast('Could not draw the card.',1);return}
+  const url=c.toDataURL('image/png');
+  let md=$('#shareModal');if(!md){md=document.createElement('div');md.id='shareModal';md.className='modal';md.setAttribute('role','dialog');md.setAttribute('aria-label','Summary card');document.body.appendChild(md)}
+  md.innerHTML='<div class="sheet"><img id="shareImg" alt="'+esc(d.r.tag.toLowerCase())+' card for '+esc(d.r.label)+'" src="'+url+'"><div class="mact" style="justify-content:center"><button class="btn pri" id="shareSave" type="button">Download PNG</button><button class="btn" id="shareClose" type="button">Close</button></div></div>';
+  md.classList.add('on');
+  md.onclick=async e=>{
+    if(e.target===md||e.target.id==='shareClose'){md.classList.remove('on');return}
+    if(e.target.id==='shareSave'){
+      if(!S.cap.dl){H.toast('Downloads are not available here. Press and hold, or right-click the image, to save it.',1);return}
+      c.toBlob(async b=>{if(!b){H.toast('Could not create the image.',1);return}
+        try{await S.cap.dl.save({filename:'efp-'+d.r.file+'-'+d.r.a+'.png',data:b});H.toast('Card saved.')}catch(x){if(!x||x.code!=='declined')H.toast('Download was not saved. Press and hold the image to save it instead.',1)}},'image/png')}
+  };
+}
+
+/* ---------- draft analysis ---------- */
+function draftHtml(T){
+  const MN=S.draftMin||5,hs=arr(T.hero),en=arr(T.enemy),bu=arr(T.banUs),bt=arr(T.banThem);
+  let gTot=0,gH=0,gE=0,gB=0;
+  ordered().forEach(m=>{if(!evalMatch(m).n)return;(m.games||[]).forEach(g=>{if(g.res!=='W'&&g.res!=='L')return;gTot++;
+    if(Object.keys(g.st||{}).some(id=>g.st[id]&&g.st[id].h))gH++;if(H.splitList(g.en).length)gE++;if(H.splitList(g.ob).length||H.splitList(g.eb).length)gB++})});
+  if(!gTot||!gH)return'<div class="card"><div class="empty"><b>No hero data yet</b><span>Enter each player\'s hero (and the enemy picks and bans) in a result. Draft analysis builds up from those records.</span></div></div>';
+  const chips='<div class="chips" role="group" aria-label="Minimum games per hero"><span class="note" style="align-self:center;margin-right:6px">Minimum games per hero</span>'+[2,3,5,10].map(n=>'<button class="chip'+(n===MN?' on':'')+'" data-mn="'+n+'" type="button">'+n+'</button>').join('')+'</div>';
+  const info='<div class="card" style="margin-bottom:14px"><div class="note"><b>How to read this.</b> These are your own recorded results, sorted. They show what has worked for the team so far, they are not a forecast. A hero needs at least <b>'+MN+' games</b> to be ranked; raise the minimum for a stricter list. Coverage: hero picks recorded in <b>'+gH+' of '+gTot+'</b> games, enemy picks in <b>'+gE+'</b>, bans in <b>'+gB+'</b>. Gaps in the draft section of results mean gaps here.</div></div>';
+  const row=(a,b,c,bar)=>'<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="t"><b>'+esc(a)+'</b><span>'+b+'</span>'+(bar||'')+'</div><div class="score">'+c+'</div></div>';
+  const list=(a,fmt,none)=>a.length?'<div class="rows" style="gap:8px">'+a.map(fmt).join('')+'</div>':'<div class="note">'+none+'</div>';
+  const wr=h=>pct(h.w,h.w+h.l),ok=h=>h.w+h.l>=MN;
+  const best=hs.filter(ok).sort((a,b)=>wr(b)-wr(a)||(b.w+b.l)-(a.w+a.l)).slice(0,8);
+  const review=hs.filter(h=>ok(h)&&wr(h)<50).sort((a,b)=>wr(a)-wr(b)||(b.w+b.l)-(a.w+a.l)).slice(0,8);
+  const heroRow=h=>row(h.name,(h.w+h.l)+' games · '+h.w+'W '+h.l+'L · KDA '+f2(kdaOf(h)),wr(h)+'%',wlbar(h.w,h.l));
+  const c1='<div class="card"><h2><span>Best performing picks</span><span class="blue">'+MN+'+ games</span></h2>'+list(best,heroRow,'No hero has '+MN+' or more games yet. Lower the minimum above to see early results.')+'</div>';
+  const c2='<div class="card"><h2><span>Picks to review</span><span class="blue">under 50%</span></h2>'+list(review,heroRow,'No hero below 50% with '+MN+'+ games.')+'</div>';
+  const loseTo=en.filter(ok).filter(h=>wr(h)<50).sort((a,b)=>wr(a)-wr(b)||(b.w+b.l)-(a.w+a.l)).slice(0,8);
+  const beat=en.filter(ok).filter(h=>wr(h)>=50).sort((a,b)=>wr(b)-wr(a)||(b.w+b.l)-(a.w+a.l)).slice(0,8);
+  const enRow=h=>row(h.name,'faced '+(h.w+h.l)+'× · we won '+h.w+', lost '+h.l,wr(h)+'%',wlbar(h.w,h.l));
+  const c3='<div class="card"><h2><span>Enemy heroes that beat us</span><span class="blue">our win rate vs them</span></h2>'+list(loseTo,enRow,gE?'No enemy hero with '+MN+'+ games that we lose to.':'Enemy picks are not recorded yet.')+'</div>';
+  const c4='<div class="card"><h2><span>Enemy heroes we beat</span><span class="blue">our win rate vs them</span></h2>'+list(beat,enRow,gE?'No enemy hero with '+MN+'+ games that we beat.':'Enemy picks are not recorded yet.')+'</div>';
+  const bRow=h=>row(h.name,h.w+'W '+h.l+'L in those games',h.n+'×');
+  const c5='<div class="card"><h2><span>Heroes we ban most</span></h2>'+list(bu.sort((a,b)=>b.n-a.n).slice(0,6),bRow,'Our bans are not recorded yet.')+'<div class="note" style="margin-top:10px">The W–L shown is for games with that ban. It does not measure the ban\'s effect.</div></div>';
+  const c6='<div class="card"><h2><span>Heroes banned against us</span></h2>'+list(bt.sort((a,b)=>b.n-a.n).slice(0,6),bRow,'Enemy bans are not recorded yet.')+'</div>';
+  const low=hs.filter(h=>!ok(h)).sort((a,b)=>(b.w+b.l)-(a.w+a.l)||a.name.localeCompare(b.name));
+  const c7=low.length?'<div class="card stack"><h2><span>Not ranked yet</span><span class="blue">under '+MN+' games</span></h2><div class="meta" style="flex-wrap:wrap;gap:6px">'+low.map(h=>'<span class="tag">'+esc(h.name)+' · '+(h.w+h.l)+'</span>').join('')+'</div></div>':'';
+  return chips+info+'<div class="grid g2">'+c1+c2+'</div><div class="grid g2 stack">'+c3+c4+'</div><div class="grid g2 stack">'+c5+c6+'</div>'+c7;
+}
+H.statsClick=function(e){
+  const p=e.target.closest('[data-sp]');if(p){S.sumP=p.dataset.sp;H.renderStats();return true}
+  if(e.target.closest('[data-sumshare]')){shareSummary();return true}
+  const m=e.target.closest('[data-mn]');if(m){S.draftMin=+m.dataset.mn;H.renderStats();return true}
+  return false;
+};
+Object.assign(H,{summaryHtml,draftHtml,periodData});
 })();
 
 (function(){
