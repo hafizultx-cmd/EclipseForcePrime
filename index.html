@@ -467,7 +467,7 @@ if(!lib||!lib.createClient){console.error('Supabase library failed to load');ret
 const sb=lib.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,lock:async(n,t,fn)=>await fn()}});
 const within=(p,ms,fb)=>Promise.race([p,new Promise(r=>setTimeout(()=>r(fb),ms))]);
 const getSes=async()=>{try{return (await within(sb.auth.getSession(),4000,{data:{session:null}})).data.session}catch(e){return null}};
-const TABLES={matches:1,roster:1};
+const TABLES={matches:1,roster:1,settings:1};
 function collection(name){
   if(!TABLES[name])throw new Error('unknown collection');
   return{onSnapshot(cb,err){
@@ -569,16 +569,23 @@ const DEFAULT_ROSTER=[
 const HEROES=['Miya','Balmond','Saber','Alice','Nana','Tigreal','Alucard','Karina','Akai','Franco','Bane','Bruno','Clint','Rafaela','Eudora','Zilong','Fanny','Layla','Minotaur','Lolita','Hayabusa','Freya','Gord','Natalia','Kagura','Chou','Sun','Alpha','Ruby','Yi Sun-shin','Moskov','Johnson','Cyclops','Estes','Hilda','Aurora','Lapu-Lapu','Vexana','Roger','Karrie','Gatotkaca','Harley','Irithel','Grock','Argus','Odette','Lancelot','Diggie','Hylos','Zhask','Helcurt','Pharsa','Lesley','Jawhead','Angela','Gusion','Valir','Martis','Uranus','Hanabi','Chang\'e','Kaja','Selena','Aldous','Claude','Vale','Leomord','Lunox','Hanzo','Belerick','Kimmy','Thamuz','Harith','Minsitthar','Kadita','Faramis','Badang','Khufra','Granger','Guinevere','Esmeralda','Terizla','X.Borg','Ling','Dyrroth','Lylia','Baxia','Masha','Wanwan','Silvanna','Cecilion','Carmilla','Atlas','Popol and Kupa','Yu Zhong','Luo Yi','Benedetta','Khaleed','Barats','Brody','Yve','Mathilda','Paquito','Gloo','Beatrix','Phoveus','Natan','Aulus','Aamon','Valentina','Edith','Floryn','Yin','Melissa','Xavier','Julian','Fredrinn','Joy','Novaria','Arlott','Ixia','Nolan','Cici','Chip','Zhuxin','Suyou','Lukas','Kalea','Zetian','Obsidia'];
 const fold=t=>String(t==null?'':t).toLowerCase().normalize('NFKD').replace(/[\u03b1\u0251]/g,'a').replace(/[^a-z0-9]/g,'');
 function lev(a,b){if(a===b)return 0;const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let p=[];for(let j=0;j<=n;j++)p[j]=j;for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[n]}
-const HMAP=new Map(HEROES.map(h=>[fold(h),h]));
+let HMAP=new Map(HEROES.map(h=>[fold(h),h]));const BASE_HEROES=HEROES.slice();let HCUST={},HCFG={extra:[],aliases:{},hidden:[]};
 const HALIAS={popol:'Popol and Kupa',kupa:'Popol and Kupa',yss:'Yi Sun-shin',yisunshin:'Yi Sun-shin',xborg:'X.Borg',lapu:'Lapu-Lapu',change:'Chang\'e',changee:'Chang\'e'};
 const _hc=new Map();
 function canonHero(s){
   const raw=String(s==null?'':s).trim();if(!raw)return'';
   if(_hc.has(raw))return _hc.get(raw);
-  const f=fold(raw);let out=HMAP.get(f)||HALIAS[f]||'';
+  const f=fold(raw);let out=HCUST[f]||HMAP.get(f)||HALIAS[f]||'';
   if(!out&&f.length>=4){let best=null,bd=9,tie=false;const lim=f.length>=8?2:1;HMAP.forEach((h,k)=>{const d=lev(f,k);if(d<bd){bd=d;best=h;tie=false}else if(d===bd)tie=true});if(best&&bd<=lim&&!tie)out=best}
   if(!out)out=raw.slice(0,30).replace(/\b\w/g,c=>c.toUpperCase());
   _hc.set(raw,out);return out;
+}
+function applyHeroCfg(c){
+  c=c||{};const hid=(c.hidden||[]).map(fold),list=BASE_HEROES.filter(h=>hid.indexOf(fold(h))<0);
+  (c.extra||[]).forEach(h=>{h=String(h||'').trim();if(h&&!list.some(x=>fold(x)===fold(h)))list.push(h)});
+  HEROES.length=0;list.forEach(h=>HEROES.push(h));HMAP=new Map(HEROES.map(h=>[fold(h),h]));
+  HCUST={};const al=c.aliases||{};Object.keys(al).forEach(k=>{HCUST[k]=al[k]});
+  HCFG={extra:(c.extra||[]).slice(),aliases:Object.assign({},al),hidden:(c.hidden||[]).slice()};_hc.clear();
 }
 const splitList=v=>(Array.isArray(v)?v:String(v||'').split(/[,;]/)).map(x=>String(x).trim()).filter(Boolean);
 const S={players:[],matches:[],hasPlayers:false,sample:false,admin:false,canWrite:false,dbOn:false,synced:false,
@@ -712,7 +719,7 @@ function sampleData(){
   });
   return out;
 }
-S.H.HEROES=HEROES;S.H.canonHero=canonHero;S.H.fold=fold;S.H.lev=lev;S.H.splitList=splitList;S.H.eff=eff;S.H.compute=compute;S.H.insights=insights;S.H.sampleData=sampleData;S.H.evalMatch=evalMatch;S.H.ordered=ordered;S.H.players=players;
+S.H.HEROES=HEROES;S.H.BASE_HEROES=BASE_HEROES;S.H.applyHeroCfg=applyHeroCfg;S.H.heroCfg=()=>({extra:HCFG.extra.slice(),aliases:Object.assign({},HCFG.aliases),hidden:HCFG.hidden.slice()});S.H.canonHero=canonHero;S.H.fold=fold;S.H.lev=lev;S.H.splitList=splitList;S.H.eff=eff;S.H.compute=compute;S.H.insights=insights;S.H.sampleData=sampleData;S.H.evalMatch=evalMatch;S.H.ordered=ordered;S.H.players=players;
 Object.assign(S.H,{uid,pad,ymd,toDate,dayName,niceDate,niceTime,initialsLogo,logoOf,DAYS,MONTHS,IMG_US,IMG_MAIN,IMG_FULL,COL,PCOL,ROLES,DEFAULT_ROSTER});
 window.__EFX=S;
 })();
@@ -1253,6 +1260,63 @@ Object.assign(H,{summaryHtml,draftHtml,periodData});
 
 (function(){
 'use strict';
+const S=window.__EFX,H=S.H,{$,$$,esc}=H;
+const cfg=()=>H.heroCfg();
+const clean=v=>String(v||'').replace(/\s+/g,' ').trim().slice(0,30);
+const okName=v=>/^[\p{L}\p{N} .'\-]+$/u.test(v);
+function unknownNames(){
+  const set=new Set(H.HEROES),map={};
+  const add=raw=>{raw=String(raw||'').trim();if(!raw)return;if(set.has(H.canonHero(raw)))return;const k=H.fold(raw);if(!k)return;(map[k]=map[k]||{key:k,raw:raw,n:0}).n++};
+  S.matches.forEach(m=>(m.games||[]).forEach(g=>{Object.keys(g.st||{}).forEach(id=>g.st[id]&&add(g.st[id].h));H.splitList(g.en).forEach(add);H.splitList(g.ob).forEach(add);H.splitList(g.eb).forEach(add)}));
+  return Object.keys(map).map(k=>map[k]).sort((a,b)=>b.n-a.n||a.raw.localeCompare(b.raw));
+}
+function fHeroes(){
+  const c=cfg(),un=unknownNames(),all=H.HEROES.slice().sort((a,b)=>a.localeCompare(b));
+  const heroOpts='<option value="">Choose hero…</option>'+all.map(h=>'<option value="'+esc(h)+'">'+esc(h)+'</option>').join('');
+  const row=(a,b,c2)=>'<div class="row" style="grid-template-columns:minmax(0,1fr) auto;align-items:center"><div class="t"><b>'+a+'</b><span>'+b+'</span></div><div class="mact" style="margin:0">'+c2+'</div></div>';
+  const bi=H.BASE_HEROES.filter(h=>c.hidden.map(H.fold).indexOf(H.fold(h))<0).sort((a,b)=>a.localeCompare(b));
+  const sec1='<div class="card glow"><h2><span>Hero list</span><span class="blue">'+H.HEROES.length+' heroes</span></h2><div class="note">The built-in list ('+H.BASE_HEROES.length+' heroes) was written from general knowledge and has <b>not been checked against the live game</b>. Add new heroes here, or hide any built-in name that is wrong. Changes apply to everyone straight away, including old matches.</div>'+
+    '<div class="field" style="margin-top:12px"><label for="hNew">Add a hero</label><div style="display:flex;gap:8px"><input id="hNew" maxlength="30" autocomplete="off" placeholder="Hero name, exactly as in the game"><button class="btn pri" id="hAdd" type="button" style="flex:none">Add</button></div></div></div>';
+  const sec2='<div class="card" style="margin-top:14px"><h2><span>Unknown names in your matches</span><span class="blue">'+un.length+'</span></h2>'+(un.length?'<div class="note" style="margin-bottom:10px">These names were entered in results but are not in the hero list. Add each as a new hero, or merge it into the right hero (for example a typo). Until then they count as separate heroes.</div><div class="rows" style="gap:8px">'+un.map(u=>'<div class="row" style="grid-template-columns:minmax(0,1fr);gap:8px"><div class="t"><b>'+esc(u.raw)+'</b><span>used '+u.n+' time'+(u.n===1?'':'s')+'</span></div><div class="mact" style="margin:0;flex-wrap:wrap"><button class="btn sm" type="button" data-hadd="'+esc(u.key)+'">Add as new hero</button><select data-hsel="'+esc(u.key)+'" aria-label="Merge '+esc(u.raw)+' into" style="width:auto;min-width:140px">'+heroOpts+'</select><button class="btn sm" type="button" data-hmerge="'+esc(u.key)+'">Merge into</button></div></div>').join('')+'</div>':'<div class="note">None. Every hero name in your matches is on the list.</div>')+'</div>';
+  const sec3='<div class="card" style="margin-top:14px"><h2><span>Heroes you added</span><span class="blue">'+c.extra.length+'</span></h2>'+(c.extra.length?'<div class="rows" style="gap:8px">'+c.extra.map((h,i)=>'<div class="row" style="grid-template-columns:minmax(0,1fr);gap:8px"><input data-hren="'+i+'" value="'+esc(h)+'" maxlength="30" aria-label="Hero name"><div class="mact" style="margin:0"><button class="btn sm" type="button" data-hsave="'+i+'">Rename</button><button class="btn sm bad" type="button" data-hdel="'+i+'">Remove</button></div></div>').join('')+'</div><div class="note" style="margin-top:10px">Renaming keeps old matches working: the old spelling is mapped to the new name.</div>':'<div class="note">No added heroes yet.</div>')+'</div>';
+  const ak=Object.keys(c.aliases);
+  const sec4='<div class="card" style="margin-top:14px"><h2><span>Name corrections</span><span class="blue">'+ak.length+'</span></h2>'+(ak.length?'<div class="rows" style="gap:8px">'+ak.map(k=>row(esc(k),'counted as <b>'+esc(c.aliases[k])+'</b>','<button class="btn sm bad" type="button" data-halrm="'+esc(k)+'">Remove</button>')).join('')+'</div>':'<div class="note">None. Merging an unknown name above creates one.</div>')+'</div>';
+  const sec5='<div class="card" style="margin-top:14px"><h2><span>Hide a built-in hero</span><span class="blue">'+c.hidden.length+' hidden</span></h2><div class="note" style="margin-bottom:10px">Use this only if a built-in name is not a real hero. Hidden heroes disappear from suggestions and spelling correction. Old matches keep the name as typed.</div><div style="display:flex;gap:8px"><select id="hHideSel" aria-label="Built-in hero to hide">'+bi.map(h=>'<option value="'+esc(h)+'">'+esc(h)+'</option>').join('')+'</select><button class="btn" id="hHide" type="button" style="flex:none">Hide</button></div>'+(c.hidden.length?'<div class="rows" style="gap:8px;margin-top:12px">'+c.hidden.map(h=>row(esc(h),'hidden','<button class="btn sm" type="button" data-hrest="'+esc(h)+'">Restore</button>')).join('')+'</div>':'')+'</div>';
+  return sec1+sec2+sec3+sec4+sec5;
+}
+async function save(next,msg){
+  if(!S.canWrite){H.toast('Storage is not connected. Reload the page.',1);return false}
+  try{await S.db.doc('settings/heroes').set(JSON.parse(JSON.stringify(next)));H.applyHeroCfg(next);if(msg)H.toast(msg);H.renderAdmin();return true}
+  catch(e){H.toast('Could not save the hero list.',1);return false}
+}
+const has=(list,v)=>list.some(x=>H.fold(x)===H.fold(v));
+function heroClick(e){
+  const t=e.target,c=cfg();
+  if(t.id==='hAdd'){const v=clean($('#hNew').value);
+    if(!v||!okName(v)){H.toast('Enter a hero name (letters, numbers, spaces, . \' -).',1);return true}
+    if(has(H.HEROES,v)){H.toast(v+' is already on the list.',1);return true}
+    if(has(H.BASE_HEROES,v)&&has(c.hidden,v)){H.toast(v+' is a hidden built-in hero. Restore it below instead.',1);return true}
+    c.extra.push(v);save(c,v+' added.');return true}
+  const ad=t.closest('[data-hadd]');if(ad){const u=unknownNames().find(x=>x.key===ad.dataset.hadd);if(!u)return true;const v=clean(H.canonHero(u.raw));
+    if(!v||!okName(v)){H.toast('That name has characters I cannot use. Merge it instead.',1);return true}
+    if(!has(c.extra,v))c.extra.push(v);save(c,v+' added.');return true}
+  const mg=t.closest('[data-hmerge]');if(mg){const k=mg.dataset.hmerge,sel=$('[data-hsel="'+k+'"]');if(!sel||!sel.value){H.toast('Choose the hero to merge into first.',1);return true}c.aliases[k]=sel.value;save(c,'Merged into '+sel.value+'.');return true}
+  const sv=t.closest('[data-hsave]');if(sv){const i=+sv.dataset.hsave,old=c.extra[i],inp=$('[data-hren="'+i+'"]'),v=clean(inp&&inp.value);
+    if(!v||!okName(v)){H.toast('Enter a valid hero name.',1);return true}
+    if(H.fold(v)!==H.fold(old)&&has(H.HEROES,v)){H.toast(v+' is already on the list.',1);return true}
+    c.extra[i]=v;Object.keys(c.aliases).forEach(k=>{if(c.aliases[k]===old)c.aliases[k]=v});if(H.fold(old)!==H.fold(v))c.aliases[H.fold(old)]=v;
+    save(c,'Renamed to '+v+'.');return true}
+  const dl=t.closest('[data-hdel]');if(dl){const i=+dl.dataset.hdel,old=c.extra[i];c.extra.splice(i,1);Object.keys(c.aliases).forEach(k=>{if(c.aliases[k]===old)delete c.aliases[k]});save(c,old+' removed.');return true}
+  const ar=t.closest('[data-halrm]');if(ar){delete c.aliases[ar.dataset.halrm];save(c,'Correction removed.');return true}
+  if(t.id==='hHide'){const v=$('#hHideSel').value;if(!v)return true;if(!has(c.hidden,v))c.hidden.push(v);save(c,v+' hidden.');return true}
+  const rs=t.closest('[data-hrest]');if(rs){c.hidden=c.hidden.filter(x=>x!==rs.dataset.hrest);save(c,'Restored.');return true}
+  return false;
+}
+Object.assign(H,{fHeroes,heroClick});
+})();
+
+(function(){
+'use strict';
 const S=window.__EFX,H=S.H,{$,$$,esc,num,evalMatch,ordered,players,toDate,logoOf}=H;
 S.tab='match';S.edit=null;S.res=null;S.pendingDel=null;
 const blankMatch=d=>({id:null,date:d||H.ymd(new Date()),time:'20:00',type:'scrim',event:'',bo:3,opp:'',cc:'',logo:'',tt:'',notes:'',games:[]});
@@ -1347,8 +1411,8 @@ function renderAdmin(){
   const el=$('#v-admin');
   if(!S.admin){el.innerHTML='<div class="card"><div class="empty"><b>Admin access only</b><span>This console opens for the captain and editors the artifact is shared with.</span></div></div>';return}
   if(!S.canWrite)el.innerHTML='<div class="card"><div class="empty"><b>Storage is not connected</b><span>The shared database did not answer, so changes cannot be saved right now. Reload the page.</span></div></div>';
-  const tabs=[['match','Schedule'],['result','Results'],['roster','Roster'],['invite','Invite'],['data','Data']];
-  el.innerHTML='<div class="atabs">'+tabs.map(t=>'<button class="chip'+(S.tab===t[0]?' on':'')+'" data-t="'+t[0]+'">'+t[1]+'</button>').join('')+'</div>'+(S.tab==='match'?fMatch():S.tab==='result'?fResult():S.tab==='roster'?fRoster():S.tab==='invite'?fInvite():fData());
+  const tabs=[['match','Schedule'],['result','Results'],['roster','Roster'],['heroes','Heroes'],['invite','Invite'],['data','Data']];
+  el.innerHTML='<div class="atabs">'+tabs.map(t=>'<button class="chip'+(S.tab===t[0]?' on':'')+'" data-t="'+t[0]+'">'+t[1]+'</button>').join('')+'</div>'+(S.tab==='match'?fMatch():S.tab==='result'?fResult():S.tab==='roster'?fRoster():S.tab==='invite'?fInvite():S.tab==='heroes'?H.fHeroes():fData());
   wire(el);
 }
 function collectMatch(){
@@ -1417,6 +1481,7 @@ async function scanShot(file){
 }
 function wire(el){
   el.onclick=async e=>{
+    if(H.heroClick&&H.heroClick(e))return;
     const t=e.target.closest('[data-t]');if(t){S.tab=t.dataset.t;S.rd=null;S.flags=null;S.notes=null;renderAdmin();return}
     if(e.target.id==='copyLink'){const i=$('#teamLink');try{await navigator.clipboard.writeText(i.value);H.toast('Link copied.')}catch(x){i.focus();i.select();H.toast('Press Ctrl+C (or Cmd+C) to copy.')}return}
     if(e.target.id==='addPlayer'){S.rd=collectRoster();S.rd.push({id:'p'+H.uid(),name:'New player',ign:'',titles:[],role:'Substitute',level:0,stars:0,peak:0,matches:0,likes:0});renderAdmin();const ins=$$('tr[data-r] [data-f=name]');const l=ins[ins.length-1];if(l){l.focus();l.select()}return}
@@ -1656,6 +1721,7 @@ show();chrome();
   let tm=setTimeout(()=>{if(!S.synced){$('#syncPill span').textContent='Not reachable'}},10000);
   const done=snap=>{if(!snap.metadata.fromCache){S.synced=true;clearTimeout(tm);H.decide()}};
   S.db.collection('matches').onSnapshot(snap=>{S.matches=snap.docs.map(d=>Object.assign({},d.data(),{id:d.id}));done(snap);refresh(true)},e=>{S.dbOn=false;chrome();H.decide()});
+  S.db.collection('settings').onSnapshot(snap=>{const d=snap.docs.find(x=>x.id==='heroes');H.applyHeroCfg(d?d.data():{});refresh(true)},()=>{});
   S.db.collection('roster').onSnapshot(snap=>{S.players=snap.docs.map(d=>Object.assign({},d.data(),{id:d.id}));S.hasPlayers=S.players.length>0;refresh(true)},()=>{});
 })();
 })();
