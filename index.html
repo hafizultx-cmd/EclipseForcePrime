@@ -761,7 +761,7 @@ function renderDashboard(){
   if(next){const ev=evalMatch(next),ts=toDate(next).getTime();
     hero='<h2><span>'+(ev.status==='live'?'Series in progress':'Next match')+'</span><span class="blue">'+esc(H.dayName(next.date))+'</span></h2><div class="hero"><div class="team"><img class="lg us" src="'+IMG_US+'" alt=""><b>Eclipse Force Prime</b></div><div class="vs">VS<small>BO'+ev.bo+'</small></div><div class="team"><img class="lg" src="'+esc(logoOf(next))+'" alt=""><b>'+esc(next.opp||'TBD')+'</b></div></div>'+
     (ev.status==='live'?'<div class="meta"><span class="tag live">Live score '+ev.w+' – '+ev.l+'</span></div>':'<div class="countdown cd" data-ts="'+ts+'">'+cdBlocks(ts)+'</div>')+
-    '<div class="meta">'+typeTag(next)+(next.event?'<span class="tag">'+esc(next.event)+'</span>':'')+'<span class="tag">'+esc(niceDate(next))+'</span>'+(next.time?'<span class="tag">'+esc(niceTime(next))+'</span>':'')+'</div>'+(H.ttRow?H.ttRow(next):'')+(H.remindBtns?H.remindBtns(next):'');
+    '<div class="meta">'+typeTag(next)+(next.cc&&H.ccLabel&&H.ccLabel(next.cc)?'<span class="tag">'+esc(H.ccLabel(next.cc))+'</span>':'')+(next.event?'<span class="tag">'+esc(next.event)+'</span>':'')+'<span class="tag">'+esc(niceDate(next))+'</span>'+(next.time?'<span class="tag">'+esc(niceTime(next))+'</span>':'')+'</div>'+(H.ttRow?H.ttRow(next):'')+(H.remindBtns?H.remindBtns(next):'');
   } else hero='<h2><span>Next match</span></h2><div class="empty"><b>No upcoming match</b><span>'+(S.admin?'Add one in the Admin console.':'Nothing scheduled yet.')+'</span></div>';
   const gp=pct(T.gw,T.games);
   const rec=T.games?ring(gp,gp+'%','WIN RATE','rgd')+'<div class="sep"></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin-bottom:8px"><span>Series <b class="up">'+T.sw+'W</b> · <b class="dn">'+T.sl+'L</b>'+(T.sd?' · '+T.sd+'D':'')+'</span><span>Form</span></div><div class="form">'+(T.form.slice(0,10).map(r=>'<i class="'+(r==='W'?'w':r==='L'?'l':'')+'">'+r+'</i>').join('')||'<span class="note">No finished series yet.</span>')+'</div>':'<div class="empty"><b>No results yet</b><span>Record a result and the win ring lights up.</span></div>';
@@ -808,7 +808,7 @@ function draftLine(g){
 function matchCard(m){
   const ev=evalMatch(m),open=S.openId===m.id;
   const games=(m.games||[]).map((g,i)=>'<div class="game"><h3><span>Game '+(i+1)+'</span><span class="tag '+(g.res==='W'?'win':'loss')+'">'+(g.res==='W'?'Victory':'Defeat')+'</span>'+(num(g.min)?'<span>'+num(g.min)+' min</span>':'')+(g.mvp?'<span class="gold">MVP '+esc((players().find(p=>p.id===g.mvp)||{}).name||'')+'</span>':'')+'</h3>'+gameTable(g)+'</div>').join('');
-  return '<div class="card match'+(open?' open':'')+'" data-id="'+esc(m.id)+'"><button class="mhead" data-tog="'+esc(m.id)+'" aria-expanded="'+open+'"><img class="ic" src="'+esc(logoOf(m))+'" alt="" style="width:46px;height:46px;border-radius:50%;object-fit:cover;background:#000;border:1px solid var(--line2)"><div class="t" style="min-width:0"><b style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">vs '+esc(m.opp||'TBD')+'</b><span style="font-size:12px;color:var(--mute)">'+esc(niceDate(m))+(m.time?' · '+esc(niceTime(m)):'')+(m.event?' · '+esc(m.event):'')+'</span></div><div class="tg" style="display:flex;gap:6px">'+H.typeTag(m)+'<span class="tag">BO'+ev.bo+'</span></div><div style="text-align:right;display:grid;gap:4px;justify-items:end">'+(ev.n?'<span class="score">'+ev.w+' – '+ev.l+'</span>':'')+H.tagFor(m)+'</div></button>'+
+  return '<div class="card match'+(open?' open':'')+'" data-id="'+esc(m.id)+'"><button class="mhead" data-tog="'+esc(m.id)+'" aria-expanded="'+open+'"><img class="ic" src="'+esc(logoOf(m))+'" alt="" style="width:46px;height:46px;border-radius:50%;object-fit:cover;background:#000;border:1px solid var(--line2)"><div class="t" style="min-width:0"><b style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">vs '+esc(m.opp||'TBD')+(m.cc?' '+esc(flagOf(m.cc)):'')+'</b><span style="font-size:12px;color:var(--mute)">'+esc(niceDate(m))+(m.time?' · '+esc(niceTime(m)):'')+(m.cc&&ccName(m.cc)?' · '+esc(ccName(m.cc)):'')+(m.event?' · '+esc(m.event):'')+'</span></div><div class="tg" style="display:flex;gap:6px">'+H.typeTag(m)+'<span class="tag">BO'+ev.bo+'</span></div><div style="text-align:right;display:grid;gap:4px;justify-items:end">'+(ev.n?'<span class="score">'+ev.w+' – '+ev.l+'</span>':'')+H.tagFor(m)+'</div></button>'+
   '<div class="mbody">'+ttRow(m)+(m.notes?'<p class="note" style="margin:12px 0 0">'+esc(m.notes)+'</p>':'')+(games||'<div class="note" style="margin-top:12px">No games recorded yet.</div>')+
   (ev.n?'':remindBtns(m))+(ev.n?'<div class="mact"><button class="btn sm gold" data-share="'+esc(m.id)+'">Share result card</button></div>':'')+(S.admin?'<div class="mact"><button class="btn sm" data-edit="'+esc(m.id)+'">Edit match</button><button class="btn sm pri" data-res="'+esc(m.id)+'">'+(ev.n?'Edit result':'Enter result')+'</button><button class="btn sm bad" data-del="'+esc(m.id)+'">Delete</button></div>':'')+'</div></div>';
 }
@@ -819,7 +819,7 @@ function icsEsc(t){return String(t||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n
 function stampLocal(d){return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00'}
 function matchWindow(m){const a=toDate(m),mins=Math.min(240,Math.max(45,(num(m.bo,3))*50));return[a,new Date(a.getTime()+mins*60000)]}
 function matchTitle(m){return 'Eclipse Force Prime vs '+(m.opp||'TBD')+' (BO'+num(m.bo,3)+(m.type==='comp'?', competition':', scrim')+')'}
-function matchDesc(m){return [m.event?('Event: '+m.event):'',m.notes?('Notes: '+m.notes):'',(m.tt&&ttUrl(m.tt))?('Scout the opponent: '+ttUrl(m.tt)):'','Be online 15 minutes before the start.'].filter(Boolean).join('\n')}
+function matchDesc(m){return [m.event?('Event: '+m.event):'',(m.cc&&ccName(m.cc))?('Opponent country: '+ccName(m.cc)):'',m.notes?('Notes: '+m.notes):'',(m.tt&&ttUrl(m.tt))?('Scout the opponent: '+ttUrl(m.tt)):'','Be online 15 minutes before the start.'].filter(Boolean).join('\n')}
 function buildIcs(m){
   const[a,b]=matchWindow(m),now=new Date(),z=d=>d.getUTCFullYear()+pad(d.getUTCMonth()+1)+pad(d.getUTCDate())+'T'+pad(d.getUTCHours())+pad(d.getUTCMinutes())+pad(d.getUTCSeconds())+'Z';
   const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Eclipse Force Prime//Team OS//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT','UID:'+m.id+'@eclipseforceprime','DTSTAMP:'+z(now),'DTSTART:'+stampLocal(a),'DTEND:'+stampLocal(b),'SUMMARY:'+icsEsc(matchTitle(m)),'DESCRIPTION:'+icsEsc(matchDesc(m)+(SITE_URL()?'\n'+SITE_URL():'')),
@@ -827,7 +827,7 @@ function buildIcs(m){
   return L.join('\r\n')+'\r\n';
 }
 function waText(m){
-  return '*'+matchTitle(m)+'*\n'+niceDate(m)+(m.time?' · '+niceTime(m):'')+'\nBe online 15 minutes before.'+(m.event?'\nEvent: '+m.event:'')+((m.tt&&ttUrl(m.tt))?'\nScout them on TikTok: '+ttUrl(m.tt):'')+(SITE_URL()?'\nTeam OS: '+SITE_URL():'');
+  return '*'+matchTitle(m)+'*\n'+niceDate(m)+(m.time?' · '+niceTime(m):'')+'\nBe online 15 minutes before.'+(m.cc&&ccName(m.cc)?'\nOpponent: '+(m.opp||'TBD')+' ('+ccName(m.cc)+')':'')+(m.event?'\nEvent: '+m.event:'')+((m.tt&&ttUrl(m.tt))?'\nScout them on TikTok: '+ttUrl(m.tt):'')+(SITE_URL()?'\nTeam OS: '+SITE_URL():'');
 }
 function gcalUrl(m){const[a,b]=matchWindow(m);return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(matchTitle(m))+'&dates='+stampLocal(a)+'/'+stampLocal(b)+'&details='+encodeURIComponent(matchDesc(m))}
 function remindBtns(m){
@@ -856,6 +856,25 @@ function ttRow(m){
   return '<div class="mact" style="margin:12px 0 0"><a class="btn sm gold" target="_blank" rel="noopener noreferrer" href="'+esc(u)+'">Scout opponent on TikTok</a></div>';
 }
 H.ttUrl=ttUrl;H.ttRow=ttRow;
+
+/* ---- opponent country ---- */
+const CC_TOP=['MY','ID','PH','SG','TH','KH','MM','VN','BN','LA'],CC_SKIP='AC CP DG EA EU EZ IC TA UN XA XB ZZ QO'.split(' ');
+let _cc=null;
+function ccAll(){
+  if(_cc)return _cc;let dn=null;try{dn=new Intl.DisplayNames(['en'],{type:'region'})}catch(e){}
+  const out=[],A='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  if(dn){for(const a of A)for(const b of A){const c=a+b;if(CC_SKIP.indexOf(c)>=0)continue;let n;try{n=dn.of(c)}catch(e){continue}if(n&&n!==c&&!/^unknown/i.test(n))out.push([c,n])}}
+  else CC_TOP.forEach(c=>out.push([c,c]));
+  out.sort((x,y)=>x[1].localeCompare(y[1]));return _cc=out;
+}
+const ccName=c=>{const f=ccAll().find(x=>x[0]===c);return f?f[1]:''};
+const flagOf=c=>/^[A-Z]{2}$/.test(c||'')?String.fromCodePoint(...[...c].map(ch=>127397+ch.charCodeAt(0))):'';
+const ccLabel=c=>{const n=ccName(c);return n?(flagOf(c)+' '+n).trim():''};
+function ccOptions(sel){
+  const all=ccAll(),top=CC_TOP.map(c=>all.find(x=>x[0]===c)).filter(Boolean),o=(x)=>'<option value="'+x[0]+'"'+(x[0]===sel?' selected':'')+'>'+esc(flagOf(x[0])+' '+x[1])+'</option>';
+  return '<option value="">Not set</option><optgroup label="Common">'+top.map(o).join('')+'</optgroup><optgroup label="All countries">'+all.filter(x=>CC_TOP.indexOf(x[0])<0).map(o).join('')+'</optgroup>';
+}
+H.ccLabel=ccLabel;H.ccOptions=ccOptions;
 function renderMatches(){
   const el=$('#v-matches'),all=ordered().reverse();
   const list=all.filter(m=>S.filter==='all'||(S.filter==='comp'?m.type==='comp':m.type!=='comp'));
@@ -1234,7 +1253,7 @@ Object.assign(H,{summaryHtml,draftHtml,periodData});
 'use strict';
 const S=window.__EFX,H=S.H,{$,$$,esc,num,evalMatch,ordered,players,toDate,logoOf}=H;
 S.tab='match';S.edit=null;S.res=null;S.pendingDel=null;
-const blankMatch=d=>({id:null,date:d||H.ymd(new Date()),time:'20:00',type:'scrim',event:'',bo:3,opp:'',logo:'',tt:'',notes:'',games:[]});
+const blankMatch=d=>({id:null,date:d||H.ymd(new Date()),time:'20:00',type:'scrim',event:'',bo:3,opp:'',cc:'',logo:'',tt:'',notes:'',games:[]});
 function adminEdit(id,date){S.tab='match';S.edit=id?JSON.parse(JSON.stringify(S.matches.find(m=>m.id===id)||blankMatch())):blankMatch(date);location.hash='#admin';if(S.view==='admin')renderAdmin()}
 function adminResult(id){S.flags=null;S.notes=null;const m=S.matches.find(x=>x.id===id);if(!m)return;S.tab='result';S.res={id,games:JSON.parse(JSON.stringify(m.games||[]))};if(!S.res.games.length)S.res.games.push(blankGame());location.hash='#admin';if(S.view==='admin')renderAdmin()}
 const NOPLAY='Coach / Analyst';
@@ -1250,6 +1269,7 @@ function fMatch(){
   '<div class="field"><label for="f_opp">Opponent name</label><input id="f_opp" value="'+esc(m.opp)+'" maxlength="60" placeholder="Team name"></div>'+
   '<div class="field"><label for="f_event">Event / tournament (optional)</label><input id="f_event" value="'+esc(m.event)+'" maxlength="80"></div></div>'+
   '<div class="field" style="margin-top:12px"><label for="f_logo">Opponent logo</label><div class="logo-up"><img id="logoPrev" src="'+esc(logoOf(m))+'" alt=""><input id="f_logo" type="file" accept="image/*"><button class="btn sm" id="logoClr" type="button">Remove</button></div><span class="note">Resized to 200 px and stored with the match. Without a logo the opponent\'s initials are shown.</span></div>'+
+  '<div class="field" style="margin-top:12px"><label for="f_cc">Opponent country (optional)</label><select id="f_cc">'+H.ccOptions(m.cc||'')+'</select></div>'+
   '<div class="field" style="margin-top:12px"><label for="f_tt">Opponent TikTok link (optional)</label><input id="f_tt" value="'+esc(m.tt||'')+'" maxlength="300" inputmode="url" autocomplete="off" placeholder="https://www.tiktok.com/@team  or  @team"><span class="note">Your team sees a \"Scout opponent on TikTok\" button on this match.</span></div>'+
   '<div class="field" style="margin-top:12px"><label for="f_notes">Notes (optional)</label><textarea id="f_notes" rows="2" maxlength="400">'+esc(m.notes)+'</textarea></div>'+
   '<div class="mact"><button class="btn pri" id="saveMatch">'+(m.id?'Save changes':'Add to schedule')+'</button>'+(m.id?'<button class="btn" id="newMatch">Cancel edit</button>':'')+'</div></div>';
@@ -1330,7 +1350,7 @@ function renderAdmin(){
   wire(el);
 }
 function collectMatch(){
-  const m=S.edit;m.date=$('#f_date').value;m.time=$('#f_time').value||'20:00';m.type=$('#f_type').value;m.bo=num($('#f_bo').value,3);m.opp=$('#f_opp').value.trim();m.event=$('#f_event').value.trim();m.notes=$('#f_notes').value.trim();m.tt=$('#f_tt')?$('#f_tt').value.trim():'';return m}
+  const m=S.edit;m.date=$('#f_date').value;m.time=$('#f_time').value||'20:00';m.type=$('#f_type').value;m.bo=num($('#f_bo').value,3);m.opp=$('#f_opp').value.trim();m.event=$('#f_event').value.trim();m.notes=$('#f_notes').value.trim();m.tt=$('#f_tt')?$('#f_tt').value.trim():'';m.cc=$('#f_cc')?$('#f_cc').value:'';return m}
 function collectRes(){return S.quick?collectQ():(collectFull(),true)}
 function collectFull(){
   S.res.games=$$('.game[data-g]').map(gd=>{const g={res:$('[data-k=res]',gd).value,min:$('[data-k=min]',gd).value,mvp:$('[data-k=mvp]',gd).value,st:{}};
