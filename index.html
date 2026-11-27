@@ -410,6 +410,7 @@ input.chk,select.chk{border-color:var(--warn)!important;box-shadow:0 0 0 3px rgb
 .wlb.l.on{background:rgba(255,90,110,.18);border-color:#ff5a6e;color:#ff8a9a}
 @media (max-width:560px){.qrow{grid-template-columns:1fr 1fr}.qrow .nm{grid-column:1/-1}}
 .mact a.btn{text-decoration:none;display:inline-flex;align-items:center}
+.team small.cc{display:block;margin-top:3px;color:var(--mute);font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
@@ -747,6 +748,7 @@ function tagFor(m){const ev=evalMatch(m);
   if(ev.status==='pending')return'<span class="tag live">Result pending</span>';
   return'<span class="tag">Upcoming</span>'}
 const typeTag=m=>m.type==='comp'?'<span class="tag comp">Competition</span>':'<span class="tag scrim">Scrim</span>';
+function ccSub(c){const l=c&&H.ccLabel?H.ccLabel(c):'';return l?'<small class="cc">'+esc(l)+'</small>':''}
 function matchRow(m){const ev=evalMatch(m);
   return '<div class="row"><img class="ic" src="'+esc(logoOf(m))+'" alt=""><div class="t"><b>vs '+esc(m.opp||'TBD')+'</b><span>'+esc(niceDate(m))+(m.time?' · '+esc(niceTime(m)):'')+' · '+(m.type==='comp'?'Competition':'Scrim')+' · BO'+ev.bo+'</span></div><div style="text-align:right;display:grid;gap:4px;justify-items:end">'+(ev.n?'<span class="score">'+ev.w+' – '+ev.l+'</span>':'')+tagFor(m)+'</div></div>'}
 function emptyBlock(){
@@ -759,9 +761,9 @@ function renderDashboard(){
   const past=ms.filter(m=>evalMatch(m).n>0).reverse().slice(0,5);
   let hero;
   if(next){const ev=evalMatch(next),ts=toDate(next).getTime();
-    hero='<h2><span>'+(ev.status==='live'?'Series in progress':'Next match')+'</span><span class="blue">'+esc(H.dayName(next.date))+'</span></h2><div class="hero"><div class="team"><img class="lg us" src="'+IMG_US+'" alt=""><b>Eclipse Force Prime</b></div><div class="vs">VS<small>BO'+ev.bo+'</small></div><div class="team"><img class="lg" src="'+esc(logoOf(next))+'" alt=""><b>'+esc(next.opp||'TBD')+'</b></div></div>'+
+    hero='<h2><span>'+(ev.status==='live'?'Series in progress':'Next match')+'</span><span class="blue">'+esc(H.dayName(next.date))+'</span></h2><div class="hero"><div class="team"><img class="lg us" src="'+IMG_US+'" alt=""><b>Eclipse Force Prime</b>'+ccSub(H.TEAM_CC)+'</div><div class="vs">VS<small>BO'+ev.bo+'</small></div><div class="team"><img class="lg" src="'+esc(logoOf(next))+'" alt=""><b>'+esc(next.opp||'TBD')+'</b>'+ccSub(next.cc)+'</div></div>'+
     (ev.status==='live'?'<div class="meta"><span class="tag live">Live score '+ev.w+' – '+ev.l+'</span></div>':'<div class="countdown cd" data-ts="'+ts+'">'+cdBlocks(ts)+'</div>')+
-    '<div class="meta">'+typeTag(next)+(next.cc&&H.ccLabel&&H.ccLabel(next.cc)?'<span class="tag">'+esc(H.ccLabel(next.cc))+'</span>':'')+(next.event?'<span class="tag">'+esc(next.event)+'</span>':'')+'<span class="tag">'+esc(niceDate(next))+'</span>'+(next.time?'<span class="tag">'+esc(niceTime(next))+'</span>':'')+'</div>'+(H.ttRow?H.ttRow(next):'')+(H.remindBtns?H.remindBtns(next):'');
+    '<div class="meta">'+typeTag(next)+(next.event?'<span class="tag">'+esc(next.event)+'</span>':'')+'<span class="tag">'+esc(niceDate(next))+'</span>'+(next.time?'<span class="tag">'+esc(niceTime(next))+'</span>':'')+'</div>'+(H.ttRow?H.ttRow(next):'')+(H.remindBtns?H.remindBtns(next):'');
   } else hero='<h2><span>Next match</span></h2><div class="empty"><b>No upcoming match</b><span>'+(S.admin?'Add one in the Admin console.':'Nothing scheduled yet.')+'</span></div>';
   const gp=pct(T.gw,T.games);
   const rec=T.games?ring(gp,gp+'%','WIN RATE','rgd')+'<div class="sep"></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin-bottom:8px"><span>Series <b class="up">'+T.sw+'W</b> · <b class="dn">'+T.sl+'L</b>'+(T.sd?' · '+T.sd+'D':'')+'</span><span>Form</span></div><div class="form">'+(T.form.slice(0,10).map(r=>'<i class="'+(r==='W'?'w':r==='L'?'l':'')+'">'+r+'</i>').join('')||'<span class="note">No finished series yet.</span>')+'</div>':'<div class="empty"><b>No results yet</b><span>Record a result and the win ring lights up.</span></div>';
@@ -874,7 +876,7 @@ function ccOptions(sel){
   const all=ccAll(),top=CC_TOP.map(c=>all.find(x=>x[0]===c)).filter(Boolean),o=(x)=>'<option value="'+x[0]+'"'+(x[0]===sel?' selected':'')+'>'+esc(flagOf(x[0])+' '+x[1])+'</option>';
   return '<option value="">Not set</option><optgroup label="Common">'+top.map(o).join('')+'</optgroup><optgroup label="All countries">'+all.filter(x=>CC_TOP.indexOf(x[0])<0).map(o).join('')+'</optgroup>';
 }
-H.ccLabel=ccLabel;H.ccOptions=ccOptions;
+H.TEAM_CC='MY';H.ccLabel=ccLabel;H.ccOptions=ccOptions;
 function renderMatches(){
   const el=$('#v-matches'),all=ordered().reverse();
   const list=all.filter(m=>S.filter==='all'||(S.filter==='comp'?m.type==='comp':m.type!=='comp'));
