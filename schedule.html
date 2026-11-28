@@ -1,0 +1,34 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Eclipse Force Prime · Schedule</title>
+<meta name="theme-color" content="#050a16"><meta property="og:title" content="Eclipse Force Prime — Match Schedule"><meta property="og:description" content="Live, always up-to-date schedule of upcoming matches.">
+<style>
+:root{--bg:#050a16;--panel:#0b1224;--line:rgba(120,165,255,.22);--fg:#e8eefc;--mute:#8d9bbd;--blue:#3da5ff;--gold:#f0b650}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#12214a 0,var(--bg) 60%) fixed,var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:max(20px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(28px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+main{max-width:640px;margin:0 auto}h1{font-size:13px;letter-spacing:.26em;text-transform:uppercase;margin:0;color:var(--mute);font-weight:600}h2{margin:4px 0 2px;font-size:26px;letter-spacing:.04em}
+.sub{color:var(--mute);font-size:12px;margin-bottom:18px}.acts{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 20px}
+button,a.b{font:600 11px/1 inherit;letter-spacing:.12em;text-transform:uppercase;color:var(--fg);background:rgba(10,16,32,.8);border:1px solid var(--line);border-radius:99px;padding:10px 16px;cursor:pointer;text-decoration:none}
+button:hover,a.b:hover{border-color:var(--blue)}
+.m{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:10px;display:grid;gap:4px}
+.m .d{color:var(--blue);font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}.m .v{font-size:19px;font-weight:700}.m .v small{color:var(--mute);font-weight:500;font-size:13px}
+.m .t{color:var(--mute);font-size:12px}.tag{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:2px 9px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-right:6px}
+.empty{color:var(--mute);text-align:center;border:1px dashed var(--line);border-radius:16px;padding:30px}.foot{color:var(--mute);font-size:11px;margin-top:20px;text-align:center}
+</style></head><body><main>
+<h1>Eclipse Force Prime</h1><h2>Match Schedule</h2><div class="sub">Upcoming matches · times in Malaysia (Kuala Lumpur, UTC+8) · updates automatically</div>
+<div class="acts"><button id="wa" type="button">Share on WhatsApp</button><button id="cp" type="button">Copy link</button><a class="b" href="./">Open team OS</a></div>
+<div id="list" aria-live="polite"><div class="empty">Loading schedule…</div></div><div class="foot" id="foot"></div></main>
+<script>
+const URL_='https://pqcqrqjnfyrtmebtcnvb.supabase.co/rest/v1/matches?select=id,data',KEY='sb_publishable_1dcq6ga6LxllJkJx9igFAQ_z-4Spy4I';
+const $=s=>document.querySelector(s),esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let rows=[];const dn=(()=>{try{return new Intl.DisplayNames(['en'],{type:'region'})}catch(e){return null}})();
+const flag=c=>/^[A-Za-z]{2}$/.test(c||'')?String.fromCodePoint(...c.toUpperCase().split('').map(x=>127397+x.charCodeAt(0))):'';
+const cc=c=>{if(!c)return'';let n='';try{n=dn?dn.of(c.toUpperCase()):c}catch(e){n=c}return (flag(c)+' '+n).trim()};
+function up(d){if(!d||!d.date||(d.games&&d.games.length))return false;const t=new Date(d.date+'T'+(d.time||'23:59')+':00');return !isNaN(t)&&t.getTime()>=Date.now()-3*3600e3}
+const when=d=>{const t=new Date(d.date+'T12:00:00');return t.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})+(d.time?' · '+d.time:'')};
+function list(){return rows.map(r=>r.data).filter(up).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')))}
+function render(){const L=list();$('#list').innerHTML=L.length?L.map(d=>'<div class="m"><div class="d">'+esc(when(d))+'</div><div class="v">vs '+esc(d.opp||'TBA')+(d.cc?' <small>'+esc(cc(d.cc))+'</small>':'')+'</div><div class="t"><span class="tag">'+(d.type==='comp'?'Competition':'Scrim')+'</span>'+(d.bo?'BO'+esc(d.bo):'')+(d.event?' · '+esc(d.event):'')+'</div></div>').join(''):'<div class="empty">No upcoming matches scheduled yet.</div>';
+  $('#foot').textContent='Last updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
+async function load(){try{const r=await fetch(URL_,{headers:{apikey:KEY,Authorization:'Bearer '+KEY}});if(!r.ok)throw 0;rows=await r.json();render()}catch(e){if(!rows.length)$('#list').innerHTML='<div class="empty">Could not load the schedule. Check your connection and refresh.</div>'}}
+function text(){const L=list();return '*Eclipse Force Prime — Match Schedule*\n'+(L.length?L.map(d=>'• '+when(d)+' (MYT) — vs '+(d.opp||'TBA')+(d.cc?' '+cc(d.cc):'')+' · '+(d.type==='comp'?'Comp':'Scrim')+(d.bo?' BO'+d.bo:'')+(d.event?' · '+d.event:'')).join('\n'):'No upcoming matches yet.')+'\n\nLive schedule: '+location.href.split('#')[0]}
+$('#wa').onclick=()=>window.open('https://wa.me/?text='+encodeURIComponent(text()),'_blank','noopener');
+$('#cp').onclick=async e=>{try{await navigator.clipboard.writeText(location.href.split('#')[0]);e.target.textContent='Copied ✓'}catch(x){e.target.textContent='Copy failed'}setTimeout(()=>e.target.textContent='Copy link',1800)};
+load();setInterval(load,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+</script></body></html>

@@ -513,7 +513,7 @@ css.textContent='#siteAuth{position:fixed;left:12px;bottom:12px;z-index:90;displ
 '#authBox h3{margin:0;font-size:14px;letter-spacing:.16em;text-transform:uppercase}#authBox .msg{font-size:12px;min-height:16px;color:var(--mute,#8d9bbd)}#authBox .msg.err{color:var(--loss,#ff5a6e)}';
 css.textContent+='#musicPanel{position:fixed;right:10px;width:176px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:95;display:none;opacity:.88;line-height:0}#musicPanel.on{display:block}#musicPanel iframe{border:0;border-radius:10px;background:#000;display:block;width:176px;height:99px;box-shadow:0 8px 30px rgba(0,0,0,.6)}#musicPanel a{display:block;margin-top:3px;font:10px/1.2 inherit;color:var(--mute,#8d9bbd);text-align:right;line-height:1.2}#siteAuth #musicBtn.on{border-color:var(--blue,#3da5ff);color:#fff}';
 document.head.appendChild(css);
-const wrap=document.createElement('div');wrap.id='siteAuth';wrap.innerHTML='<button type="button" id="authBtn">Admin sign-in</button><button type="button" id="musicBtn" title="Team music (YouTube)">♪ Music</button><button type="button" id="viewBtn" title="Switch between Auto, Phone and Desktop layout"></button>';
+const wrap=document.createElement('div');wrap.id='siteAuth';wrap.innerHTML='<button type="button" id="authBtn">Admin sign-in</button><button type="button" id="shareBtn" title="Share the live team schedule">Share schedule</button><button type="button" id="musicBtn" title="Team music (YouTube)">♪ Music</button><button type="button" id="viewBtn" title="Switch between Auto, Phone and Desktop layout"></button>';
 const box=document.createElement('div');box.id='authBox';box.setAttribute('role','dialog');box.setAttribute('aria-label','Admin sign-in');
 box.innerHTML='<form class="sheet" id="authForm"><h3 id="authTitle">Admin sign-in</h3><div class="field"><label for="au_e">Email</label><input id="au_e" type="email" autocomplete="username" required></div><div class="field"><label for="au_p">Password</label><input id="au_p" type="password" minlength="8" autocomplete="current-password" required></div><div class="msg" id="authMsg" role="status"></div><div class="mact" style="margin:0"><button class="btn pri" id="authGo" type="submit">Sign in</button><button class="btn" id="authMode" type="button">Create account</button><button class="btn" id="authX" type="button">Close</button></div><p class="note" style="margin:0">Only approved admin emails can change data. Everyone else sees the read-only team view.</p></form>';
 let mode='in';
@@ -527,6 +527,7 @@ function mount(){
   document.body.appendChild(wrap);document.body.appendChild(box);refreshBtn();
   showInstall();
 
+  wrap.querySelector('#shareBtn').onclick=()=>{const u=location.origin+'/schedule';const t='Eclipse Force Prime — live match schedule (auto-updates): '+u;if(navigator.share)navigator.share({title:'Eclipse Force Prime schedule',text:t,url:u}).catch(()=>{});else window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank','noopener')};
   const mb=wrap.querySelector('#musicBtn'),VID='mX7jybOisas',YT='https://youtu.be/mX7jybOisas';let mp=null,mOn=false;
   const mget=()=>{try{return localStorage.getItem('efp_mus')!=='0'}catch(e){return true}},mset=v=>{try{localStorage.setItem('efp_mus',v?'1':'0')}catch(e){}};
   function mPlay(){
