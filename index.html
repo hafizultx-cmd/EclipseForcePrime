@@ -505,7 +505,7 @@ window.claude={use:async n=>n==='db'?{collection,doc}:n==='user'?user:n==='downl
 
 /* ---- admin sign-in UI ---- */
 const css=document.createElement('style');
-css.textContent='#siteAuth{position:fixed;left:12px;bottom:12px;z-index:90;display:flex;gap:6px;flex-wrap:wrap}@media (max-width:860px){#siteAuth{position:absolute;left:auto;right:max(16px,env(safe-area-inset-right,0px));bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));gap:3px;flex-direction:row;flex-wrap:wrap;justify-content:flex-end;width:178px}#musicPanel{bottom:calc(74px + env(safe-area-inset-bottom,0px))}#siteAuth button{font-size:9px;padding:4px 9px;letter-spacing:.08em}}'+
+css.textContent='#siteAuth{position:fixed;left:12px;bottom:12px;z-index:90;display:flex;gap:6px;flex-wrap:wrap}@media (max-width:860px){#siteAuth{position:absolute;left:auto;right:max(16px,env(safe-area-inset-right,0px));bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));gap:3px;display:grid;grid-template-columns:auto auto;justify-content:end;justify-items:stretch}#siteAuth #authBtn{grid-column:1/3}#siteAuth .ml{display:none}#musicPanel{bottom:calc(74px + env(safe-area-inset-bottom,0px))}#siteAuth button{font-size:9px;padding:4px 9px;letter-spacing:.08em}}'+
 '#siteAuth button{font:600 11px/1 inherit;letter-spacing:.12em;text-transform:uppercase;color:var(--silver,#d5dcea);background:rgba(10,16,32,.75);border:1px solid var(--line2,rgba(120,165,255,.3));border-radius:99px;padding:8px 14px;cursor:pointer;backdrop-filter:blur(8px)}'+
 '#siteAuth button:hover{border-color:var(--blue,#3da5ff);color:#fff}'+
 '#authBox{position:fixed;inset:0;z-index:400;display:none;place-items:center;background:rgba(2,4,10,.82);backdrop-filter:blur(8px);padding:16px}#authBox.on{display:grid}'+
@@ -513,7 +513,7 @@ css.textContent='#siteAuth{position:fixed;left:12px;bottom:12px;z-index:90;displ
 '#authBox h3{margin:0;font-size:14px;letter-spacing:.16em;text-transform:uppercase}#authBox .msg{font-size:12px;min-height:16px;color:var(--mute,#8d9bbd)}#authBox .msg.err{color:var(--loss,#ff5a6e)}';
 css.textContent+='#musicPanel{position:fixed;right:10px;width:176px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:95;display:none;opacity:.88;line-height:0}#musicPanel.on{display:block}#musicPanel iframe{border:0;border-radius:10px;background:#000;display:block;width:176px;height:99px;box-shadow:0 8px 30px rgba(0,0,0,.6)}#musicPanel a{display:block;margin-top:3px;font:10px/1.2 inherit;color:var(--mute,#8d9bbd);text-align:right;line-height:1.2}#siteAuth #musicBtn.on{border-color:var(--blue,#3da5ff);color:#fff}';
 document.head.appendChild(css);
-const wrap=document.createElement('div');wrap.id='siteAuth';wrap.innerHTML='<button type="button" id="authBtn">Admin sign-in</button><button type="button" id="shareBtn" title="Share the live team schedule">Share schedule</button><button type="button" id="musicBtn" title="Team music (YouTube)">♪ Music</button><button type="button" id="viewBtn" title="Switch between Auto, Phone and Desktop layout"></button>';
+const wrap=document.createElement('div');wrap.id='siteAuth';wrap.innerHTML='<button type="button" id="authBtn">Admin sign-in</button><button type="button" id="musicBtn" title="Team music (YouTube)" aria-label="Team music">♪<span class="ml"> Music</span></button><button type="button" id="viewBtn" title="Switch between Auto, Phone and Desktop layout"></button>';
 const box=document.createElement('div');box.id='authBox';box.setAttribute('role','dialog');box.setAttribute('aria-label','Admin sign-in');
 box.innerHTML='<form class="sheet" id="authForm"><h3 id="authTitle">Admin sign-in</h3><div class="field"><label for="au_e">Email</label><input id="au_e" type="email" autocomplete="username" required></div><div class="field"><label for="au_p">Password</label><input id="au_p" type="password" minlength="8" autocomplete="current-password" required></div><div class="msg" id="authMsg" role="status"></div><div class="mact" style="margin:0"><button class="btn pri" id="authGo" type="submit">Sign in</button><button class="btn" id="authMode" type="button">Create account</button><button class="btn" id="authX" type="button">Close</button></div><p class="note" style="margin:0">Only approved admin emails can change data. Everyone else sees the read-only team view.</p></form>';
 let mode='in';
@@ -527,7 +527,6 @@ function mount(){
   document.body.appendChild(wrap);document.body.appendChild(box);refreshBtn();
   showInstall();
 
-  wrap.querySelector('#shareBtn').onclick=()=>{const u=location.origin+'/schedule';const t='Eclipse Force Prime — live match schedule (auto-updates): '+u;if(navigator.share)navigator.share({title:'Eclipse Force Prime schedule',text:t,url:u}).catch(()=>{});else window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank','noopener')};
   const mb=wrap.querySelector('#musicBtn'),VID='mX7jybOisas',YT='https://youtu.be/mX7jybOisas';let mp=null,mOn=false;
   const mget=()=>{try{return localStorage.getItem('efp_mus')!=='0'}catch(e){return true}},mset=v=>{try{localStorage.setItem('efp_mus',v?'1':'0')}catch(e){}};
   function mPlay(){
@@ -786,7 +785,7 @@ function renderDashboard(){
   if(next){const ev=evalMatch(next),ts=toDate(next).getTime();
     hero='<h2><span>'+(ev.status==='live'?'Series in progress':'Next match')+'</span><span class="blue">'+esc(H.dayName(next.date))+'</span></h2><div class="hero"><div class="team"><img class="lg us" src="'+IMG_US+'" alt=""><b>Eclipse Force Prime</b>'+ccSub(H.TEAM_CC)+'</div><div class="vs">VS<small>BO'+ev.bo+'</small></div><div class="team"><img class="lg" src="'+esc(logoOf(next))+'" alt=""><b>'+esc(next.opp||'TBD')+'</b>'+ccSub(next.cc)+'</div></div>'+
     (ev.status==='live'?'<div class="meta"><span class="tag live">Live score '+ev.w+' – '+ev.l+'</span></div>':'<div class="countdown cd" data-ts="'+ts+'">'+cdBlocks(ts)+'</div>')+
-    '<div class="meta">'+typeTag(next)+(next.event?'<span class="tag">'+esc(next.event)+'</span>':'')+'<span class="tag">'+esc(niceDate(next))+'</span>'+(next.time?'<span class="tag">'+esc(niceTime(next))+'</span>':'')+'</div>'+(H.ttRow?H.ttRow(next):'')+(H.remindBtns?H.remindBtns(next):'');
+    '<div class="meta">'+typeTag(next)+(next.event?'<span class="tag">'+esc(next.event)+'</span>':'')+'<span class="tag">'+esc(niceDate(next))+'</span>'+(next.time?'<span class="tag">'+esc(niceTime(next))+'</span>':'')+'</div>'+(H.ttRow?H.ttRow(next):'')+(H.remindBtns?H.remindBtns(next):'')+'<div class="mact"><button class="btn sm gold" data-schedshare type="button">Share schedule</button></div>';
   } else hero='<h2><span>Next match</span></h2><div class="empty"><b>No upcoming match</b><span>'+(S.admin?'Add one in the Admin console.':'Nothing scheduled yet.')+'</span></div>';
   const gp=pct(T.gw,T.games);
   const rec=T.games?ring(gp,gp+'%','WIN RATE','rgd')+'<div class="sep"></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin-bottom:8px"><span>Series <b class="up">'+T.sw+'W</b> · <b class="dn">'+T.sl+'L</b>'+(T.sd?' · '+T.sd+'D':'')+'</span><span>Form</span></div><div class="form">'+(T.form.slice(0,10).map(r=>'<i class="'+(r==='W'?'w':r==='L'?'l':'')+'">'+r+'</i>').join('')||'<span class="note">No finished series yet.</span>')+'</div>':'<div class="empty"><b>No results yet</b><span>Record a result and the win ring lights up.</span></div>';
@@ -903,7 +902,7 @@ H.TEAM_CC='MY';H.ccLabel=ccLabel;H.ccOptions=ccOptions;
 function renderMatches(){
   const el=$('#v-matches'),all=ordered().reverse();
   const list=all.filter(m=>S.filter==='all'||(S.filter==='comp'?m.type==='comp':m.type!=='comp'));
-  el.innerHTML='<div class="chips" role="tablist">'+[['all','All'],['scrim','Scrims'],['comp','Competitions']].map(c=>'<button class="chip'+(S.filter===c[0]?' on':'')+'" data-f="'+c[0]+'">'+c[1]+'</button>').join('')+(S.admin?'<span style="flex:1"></span><a class="btn pri sm" href="#admin" style="text-decoration:none">+ New match</a>':'')+'</div>'+
+  el.innerHTML='<div class="chips" role="tablist">'+[['all','All'],['scrim','Scrims'],['comp','Competitions']].map(c=>'<button class="chip'+(S.filter===c[0]?' on':'')+'" data-f="'+c[0]+'">'+c[1]+'</button>').join('')+'<span style="flex:1"></span><button class="btn sm gold" data-schedshare type="button">Share schedule</button>'+(S.admin?'<a class="btn pri sm" href="#admin" style="text-decoration:none">+ New match</a>':'')+'</div>'+
   (list.length?'<div class="rows" style="gap:12px">'+list.map(matchCard).join('')+'</div>':'<div class="card">'+H.emptyBlock()+'</div>');
   el.onclick=e=>{
     const t=e.target.closest('[data-tog]');if(t){S.openId=S.openId===t.dataset.tog?null:t.dataset.tog;renderMatches();return}
@@ -995,7 +994,7 @@ Object.assign(H,{renderStats,renderRoster});
 
 (function(){
 'use strict';
-const S=window.__EFX,H=S.H,{$,$$,esc,num,pct,f1,f2,compute,evalMatch,ordered,players,niceDate,logoOf,IMG_US,COL}=H;
+const S=window.__EFX,H=S.H,{$,$$,esc,num,pct,f1,f2,compute,evalMatch,ordered,players,niceDate,toDate,logoOf,IMG_US,COL}=H;
 const wl=(w,l)=>{const t=w+l;return t?'<div style="display:flex;height:7px;border-radius:9px;overflow:hidden;background:rgba(255,255,255,.07)"><i style="width:'+pct(w,t)+'%;background:var(--win)"></i><i style="width:'+pct(l,t)+'%;background:var(--loss)"></i></div>':''};
 const kdaOf=o=>(o.k+o.a)/Math.max(1,o.d);
 const small=n=>n<3?' <span class="tag" style="font-size:9px;padding:1px 6px" title="Fewer than 3 games, treat as a small sample">small sample</span>':'';
@@ -1113,8 +1112,53 @@ async function shareCard(id){
         try{await S.cap.dl.save({filename:'efp-'+nm+'-'+m.date+'.png',data:b});H.toast('Card saved.')}catch(x){if(!x||x.code!=='declined')H.toast('Download was not saved. Press and hold the image to save it instead.',1)}},'image/png')}
   };
 }
+
+/* ---------- schedule card (JPG) ---------- */
+function upcomingList(){const now=Date.now()-3*3600e3;return ordered().filter(m=>!(m.games&&m.games.length)&&toDate(m).getTime()>=now)}
+async function buildSchedCard(L){
+  try{await Promise.race([document.fonts.load('700 40px "Chakra Petch"'),new Promise(r=>setTimeout(r,1500))])}catch(e){}
+  const FAM='"Chakra Petch","Segoe UI",Arial,sans-serif',W=1080,Hh=1350,c=document.createElement('canvas');c.width=W;c.height=Hh;const x=c.getContext('2d');
+  let g=x.createLinearGradient(0,0,0,Hh);g.addColorStop(0,'#070b18');g.addColorStop(1,'#03050b');x.fillStyle=g;x.fillRect(0,0,W,Hh);
+  let r=x.createRadialGradient(540,300,20,540,300,720);r.addColorStop(0,'rgba(61,165,255,.22)');r.addColorStop(.5,'rgba(90,70,255,.10)');r.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=r;x.fillRect(0,0,W,Hh);
+  x.save();x.strokeStyle='rgba(120,165,255,.07)';x.lineWidth=1;for(let i=0;i<=W;i+=60){x.beginPath();x.moveTo(i,0);x.lineTo(i,Hh);x.stroke()}for(let j=0;j<=Hh;j+=60){x.beginPath();x.moveTo(0,j);x.lineTo(W,j);x.stroke()}x.restore();
+  x.strokeStyle='#3da5ff';x.globalAlpha=.7;x.lineWidth=3;x.strokeRect(28,28,W-56,Hh-56);x.globalAlpha=1;
+  const us=await loadImg(IMG_US);
+  x.save();x.beginPath();x.arc(98,100,44,0,7);x.closePath();x.fillStyle='#04060c';x.fill();if(us){x.clip();const k=Math.max(88/us.width,88/us.height),w=us.width*k,h=us.height*k;x.drawImage(us,98-w/2,100-h/2,w,h)}x.restore();x.beginPath();x.arc(98,100,48,0,7);x.lineWidth=5;x.strokeStyle='#3da5ff';x.stroke();
+  x.textAlign='left';x.fillStyle='#d5dcea';sp(x,'6px');x.font='700 30px '+FAM;x.fillText('ECLIPSE FORCE PRIME',162,92);x.fillStyle='#8d9bbd';x.font='600 20px '+FAM;sp(x,'8px');x.fillText('MOBILE LEGENDS · TEAM SCHEDULE',162,126);
+  x.textAlign='center';sp(x,'12px');x.fillStyle='#3da5ff';x.shadowColor='#3da5ff';x.shadowBlur=30;x.font='700 70px '+FAM;x.fillText('UPCOMING MATCHES',540,255);x.shadowBlur=0;sp(x,'4px');x.fillStyle='#8d9bbd';x.font='600 20px '+FAM;x.fillText('ALL TIMES MALAYSIA (KUALA LUMPUR, UTC+8)',540,296);sp(x,'0px');
+  const show=L.slice(0,6),rh=146;
+  const rr=(a,b,w,h,q)=>{x.beginPath();x.roundRect?x.roundRect(a,b,w,h,q):x.rect(a,b,w,h)};
+  show.forEach((m,i)=>{const y=330+i*(rh+12),comp=m.type==='comp',col=comp?'#e9b95b':'#3da5ff';
+    const pg=x.createLinearGradient(70,y,1010,y);pg.addColorStop(0,comp?'rgba(233,185,91,.16)':'rgba(61,165,255,.16)');pg.addColorStop(1,'rgba(255,255,255,.02)');x.fillStyle=pg;x.strokeStyle=col;x.globalAlpha=1;x.lineWidth=2;rr(70,y,940,rh,18);x.fill();x.stroke();
+    x.fillStyle=col;x.fillRect(70,y+18,6,rh-36);
+    x.textAlign='left';x.fillStyle=col;sp(x,'4px');x.font='700 22px '+FAM;x.fillText(niceDate(m).toUpperCase(),104,y+40);sp(x,'0px');
+    x.fillStyle='#fff';fit(x,'VS '+(m.opp||'TBA').toUpperCase(),640,46,'700',FAM);x.fillText('VS '+(m.opp||'TBA').toUpperCase(),104,y+92);
+    const meta=[comp?'COMPETITION':'SCRIM','BO'+(m.bo||1)].concat(m.event?[m.event.toUpperCase()]:[]).concat(m.cc&&H.ccLabel?[H.ccLabel(m.cc).replace(/[\u{1F1E6}-\u{1F1FF}]/gu,'').trim().toUpperCase()]:[]).join('  ·  ');
+    x.fillStyle='#8d9bbd';sp(x,'2px');fit(x,meta,640,20,'600',FAM);x.fillText(meta,104,y+126);sp(x,'0px');
+    x.textAlign='right';x.fillStyle='#fff';x.font='700 54px '+FAM;x.fillText(m.time?H.niceTime(m):'TBA',982,y+88);});
+  if(L.length>show.length){x.textAlign='center';x.fillStyle='#8d9bbd';x.font='600 22px '+FAM;sp(x,'4px');x.fillText('+ '+(L.length-show.length)+' MORE MATCH'+(L.length-show.length>1?'ES':''),540,330+6*(rh+12)+22);sp(x,'0px')}
+  x.textAlign='center';x.fillStyle='rgba(213,220,234,.55)';sp(x,'6px');x.font='600 18px '+FAM;x.fillText('LIVE SCHEDULE · ECLIPSEFORCEPRIME.VERCEL.APP/SCHEDULE',540,1310);sp(x,'0px');
+  return c;
+}
+async function shareSchedule(){
+  const L=upcomingList();if(!L.length){H.toast('No upcoming matches to share yet.',1);return}
+  H.toast('Building the schedule card…');
+  let c;try{c=await buildSchedCard(L)}catch(e){H.toast('Could not draw the card.',1);return}
+  const url=c.toDataURL('image/jpeg',.92);
+  let md=$('#shareModal');if(!md){md=document.createElement('div');md.id='shareModal';md.className='modal';md.setAttribute('role','dialog');md.setAttribute('aria-label','Schedule card');document.body.appendChild(md)}
+  md.innerHTML='<div class="sheet"><img id="shareImg" alt="Upcoming match schedule card" src="'+url+'"><div class="mact" style="justify-content:center"><button class="btn pri" id="shareSave" type="button">Download JPG</button><button class="btn" id="shareClose" type="button">Close</button></div><p class="note" style="text-align:center;margin:6px 0 0">1080 × 1350 · JPG · ready for WhatsApp or Instagram</p></div>';
+  md.classList.add('on');
+  md.onclick=async e=>{
+    if(e.target===md||e.target.id==='shareClose'){md.classList.remove('on');return}
+    if(e.target.id==='shareSave'){
+      if(!S.cap.dl){H.toast('Downloads are not available here. Press and hold, or right-click the image, to save it.',1);return}
+      c.toBlob(async b=>{if(!b){H.toast('Could not create the image.',1);return}
+        try{await S.cap.dl.save({filename:'efp-schedule-'+H.ymd(new Date())+'.jpg',data:b});H.toast('Schedule saved.')}catch(x){if(!x||x.code!=='declined')H.toast('Download was not saved. Press and hold the image to save it instead.',1)}},'image/jpeg',.92)}
+  };
+}
+document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('[data-schedshare]'))shareSchedule()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const md=$('#shareModal');if(md)md.classList.remove('on')}});
-Object.assign(H,{recordHtml,awards,titlesHtml,heroesHtml,shareCard});
+Object.assign(H,{recordHtml,awards,titlesHtml,heroesHtml,shareCard,shareSchedule});
 })();
 
 (function(){
